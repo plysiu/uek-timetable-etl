@@ -125,7 +125,7 @@ Event.remove().then((data)=> {
 require('./transform')()
     .then((data)=> {
 
-        console.log(data.timetables);
+        console.log(data);
         process.exit();
 
     }).catch((err)=> {

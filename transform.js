@@ -131,7 +131,6 @@ function expoldeByGroupFromEvent(event) {
  */
 function getTimetables() {
     return new Promise((resolve, reject)=> {
-
         Promise.all([
             UEK.getLecturersList(),
             UEK.getRoomsList(),
@@ -139,92 +138,101 @@ function getTimetables() {
             UEK.getSectionsList()])
             .then((list)=> {
 
-                try {
 
-                    var downloadQueue, interval, started,
-                        index = 0, sections = [],
-                        timetables = {
-                            'N': {},
-                            'S': {},
-                            'G': {}
-                        };
-                    downloadQueue = async.priorityQueue((task, callback) => {
-                        if (typeof task.group !== 'undefined') {
-                            UEK.getSection(task)
-                                .then((data)=> {
-                                    sections = sections.concat(data);
-                                    data.forEach((addTask)=> {
-                                        if (!timetables[addTask.type] && !timetables[addTask.type][addTask.id]) {
-                                            downloadQueue.push(addTask, 2, (err)=> {
-                                                if (err) {
-                                                    console.log(err);
-                                                }
-                                            });
-                                            callback();
-                                        }
-                                    });
-                                    callback();
-                                })
-                                .catch((err)=> {
-                                    downloadQueue.push(task, 1, (err)=> {
-                                        if (err) {
-                                            console.log(err);
-                                        }
-                                    });
-                                    callback();
-                                });
-                        } else {
-                            UEK.getTimetableOf(task)
-                                .then((data)=> {
-                                    timetables[data.type][data.id] = data;
-                                    callback();
-                                })
-                                .catch((err)=> {
-                                    downloadQueue.push(task, 2, (err)=> {
-                                        if (err) {
-                                            console.log(err);
-                                        }
-                                    });
-                                    callback();
-                                });
-                        }
-                    }, 200);
-
-
-                    list.forEach((elements)=> {
-                        index += elements.length;
-                        elements.forEach((task)=> {
-                            downloadQueue.push(task, task.group ? 1 : 2);
-
-                        });
-                    });
-
-                    started = Date.now();
-                    console.log('Started downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
-                    interval = setInterval(()=> {
-                        console.log('Remaing elements to download:', downloadQueue.length() + downloadQueue.running());
-                    }, 2500);
-
-
-                    downloadQueue.drain = () => {
-                        downloadQueue.kill();
-                        clearInterval(interval);
-                        console.log('All elements has been downloaded. Elapsed time in secconds:', (Date.now() - started) / 1000);
-
-                        resolve({
-                            timetables: timetables,
-                            // sections: sections,
-                            // labels: lists
-                        });
+                var downloadQueue, interval, started,
+                    index = 0,
+                    labels = {},
+                    sections = [],
+                    timetables = {
+                        'N': {},
+                        'S': {},
+                        'G': {}
                     };
 
-                } catch (err) {
-                    console.log(err);
-                }
+
+                downloadQueue = async.priorityQueue((task, callback) => {
+                    if (typeof task.group !== 'undefined') {
+                        UEK.getSection(task)
+                            .then((data)=> {
+                                sections = sections.concat(data);
+                                data.forEach((addTask)=> {
+                                    if (!timetables[addTask.type] && !timetables[addTask.type][addTask.id]) {
+                                        downloadQueue.push(addTask, 2, (err)=> {
+                                            if (err) {
+                                                console.log(err);
+                                            }
+                                        });
+                                        callback();
+                                    }
+                                });
+                                callback();
+                            })
+                            .catch((err)=> {
+                                downloadQueue.push(task, 1, (err)=> {
+                                    if (err) {
+                                        console.log(err);
+                                    }
+                                });
+                                callback();
+                            });
+                    } else {
+                        UEK.getTimetableOf(task)
+                            .then((data)=> {
+                                timetables[data.type][data.id] = data;
+                                callback();
+                            })
+                            .catch((err)=> {
+                                downloadQueue.push(task, 2, (err)=> {
+                                    if (err) {
+                                        console.log(err);
+                                    }
+                                });
+                                callback();
+                            });
+                    }
+                }, 200);
+
+
+                list.forEach((elements)=> {
+                    index += elements.length;
+                    elements.forEach((task)=> {
+                        labels[task.id] = task;
+                        downloadQueue.push(task, task.group ? 1 : 2);
+                    });
+                });
+                started = Date.now();
+                console.log('Started downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
+                interval = setInterval(()=> {
+                    console.log('Remaing elements to download:', downloadQueue.length() + downloadQueue.running());
+                }, 2500);
+                downloadQueue.drain = () => {
+                    downloadQueue.kill();
+                    clearInterval(interval);
+                    console.log('All elements has been downloaded. Elapsed time in secconds:', (Date.now() - started) / 1000);
+
+                    for (var timetable in   timetables.N) {
+
+                        if (timetables.N[timetable].moodle) {
+                            labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
+
+                        }
+                    }
+
+                    sections.forEach((section)=> {
+                        labels[section.id].id = group.id;
+                        labels[section.id].name = group.name;
+                        labels[section.id].type = group.type;
+                        labels[section.id].group = section.group;
+                    });
+                    resolve({
+                        // timetables: timetables,
+                        labels: labels
+                        // labels: sections
+                    });
+                };
             });
     });
-}
-;
+};
 exports.expoldeByGroupFromEvent = expoldeByGroupFromEvent;
 /**
  *
@@ -242,8 +250,45 @@ module.exports = function () {
     return new Promise((resolve, reject)=> {
         getTimetables()
             .then((data)=> {
+                //     id: {type: Number},
+                //     key: {
+                //         type: String,
+                //             require: true,
+                //             trim: true
+                //     },
+                //     value: {
+                //         type: String,
+                //             trim: true
+                //     }
+                //     type: {
+                //         type: String,
+                //     enum: [
+                //             //Group
+                //             'G',
+                //             //Building
+                //             'B',
+                //             //Room
+                //             'S',
+                //             //Tutor
+                //             'N',
+                //             //Field
+                //             'F',
+                //             //Unknown to validate
+                //             '?'
+                //         ],
+                //             require: true,
+                //     default: '?'
+                //     },
+                //     moodleId: {type: Number}
+                //     parentId: {type: mongoose.Schema.Types.ObjectId}
+                //
+                // var labels = [];
+                // for (var groups in data.labels) {
+                //     {
+                //     }
+                // }
 
-
+                //
                 // function findTutorNameInRoomsFromEvent(eventQuery) {
                 //     data.timetables.S[eventQuery.place].events.forEach((event)=> {
                 //         if (eventQuery.date === event.date &&
@@ -262,9 +307,9 @@ module.exports = function () {
                 //     });
                 //     return;
                 // };
-                /**
-                 * Adds new rule if found reversed tutor name
-                 */
+                // /**
+                //  * Adds new rule if found reversed tutor name
+                //  */
                 // for (var timetable in data.timetables.N) {
                 //     console.log(data.timetables.N[timetable].name);
                 //
@@ -274,6 +319,7 @@ module.exports = function () {
                 //         data.timetables.N[timetable].name = name;
                 //     }
                 // }
+
 
                 resolve(data);
             })
