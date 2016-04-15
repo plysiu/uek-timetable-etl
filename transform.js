@@ -47,18 +47,20 @@ function expoldeByTimeFromEvent(event) {
         events = [];
 
     if (event instanceof Array) {
-        event.forEach((item)=> {
+        event.forEach((item) => {
             events = events.concat(expoldeByTimeFromEvent(item));
-        });
+        })
+        ;
     } else {
         var eventBlock,
             groups = [];
         if (typeof event.group !== 'undefined') {
-            event.group.split(', ').forEach((item)=> {
+            event.group.split(', ').forEach((item) => {
                 eventBlock = Object.assign({}, event);
                 eventBlock.group = item;
                 events.push(eventBlock);
-            });
+            })
+            ;
         } else {
             events.push(event);
         }
@@ -74,9 +76,10 @@ function expoldeByGroupFromEvent(event) {
     var i,
         events = [];
     if (event instanceof Array) {
-        event.forEach((item)=> {
+        event.forEach((item) => {
             events = events.concat(expoldeByGroupFromEvent(item));
-        });
+        })
+        ;
     }
     else {
         var eventBlock,
@@ -130,13 +133,13 @@ function expoldeByGroupFromEvent(event) {
  * @return {Promise}
  */
 function getTimetables() {
-    return new Promise((resolve, reject)=> {
+    return new Promise((resolve, reject) => {
         Promise.all([
             UEK.getLecturersList(),
             UEK.getRoomsList(),
             UEK.getGroupsList(),
             UEK.getSectionsList()])
-            .then((list)=> {
+            .then((list) => {
 
 
                 var downloadQueue, interval, started,
@@ -151,87 +154,151 @@ function getTimetables() {
 
 
                 downloadQueue = async.priorityQueue((task, callback) => {
-                    if (typeof task.group !== 'undefined') {
-                        UEK.getSection(task)
-                            .then((data)=> {
-                                sections = sections.concat(data);
-                                data.forEach((addTask)=> {
-                                    if (!timetables[addTask.type] && !timetables[addTask.type][addTask.id]) {
-                                        downloadQueue.push(addTask, 2, (err)=> {
+                        if (typeof task.group !== 'undefined'
+                        ) {
+                            UEK.getSection(task)
+                                .then((data) => {
+                                    sections = sections.concat(data);
+                                    data.forEach((addTask) => {
+                                        if (
+                                            !timetables[addTask.type] && !timetables[addTask.type][addTask.id]
+                                        ) {
+                                            downloadQueue.push(addTask, 2, (err) => {
+                                                    if (err) {
+                                                        console.log(err);
+                                                    }
+                                                }
+                                            )
+                                            ;
+                                            callback();
+                                        }
+                                    })
+                                    ;
+                                    callback();
+                                })
+                                .catch((err) => {
+                                    downloadQueue.push(task, 1, (err) => {
                                             if (err) {
                                                 console.log(err);
                                             }
-                                        });
-                                        callback();
-                                    }
-                                });
-                                callback();
-                            })
-                            .catch((err)=> {
-                                downloadQueue.push(task, 1, (err)=> {
-                                    if (err) {
-                                        console.log(err);
-                                    }
-                                });
-                                callback();
-                            });
-                    } else {
-                        UEK.getTimetableOf(task)
-                            .then((data)=> {
-                                timetables[data.type][data.id] = data;
-                                callback();
-                            })
-                            .catch((err)=> {
-                                downloadQueue.push(task, 2, (err)=> {
-                                    if (err) {
-                                        console.log(err);
-                                    }
-                                });
-                                callback();
-                            });
-                    }
-                }, 200);
+                                        }
+                                    )
+                                    ;
+                                    callback();
+                                })
+                            ;
+                        }
+                        else {
+                            UEK.getTimetableOf(task)
+                                .then((data) => {
+                                    timetables[data.type][data.id] = data;
+                                    callback();
+                                })
+                                .catch((err) => {
+                                    downloadQueue.push(task, 2, (err) => {
+                                            if (err) {
+                                                console.log(err);
+                                            }
+                                        }
+                                    )
+                                    ;
+                                    callback();
+                                })
+                            ;
+                        }
+                    },
+                    200
+                )
+                ;
+                try {
 
 
-                list.forEach((elements)=> {
-                    index += elements.length;
-                    elements.forEach((task)=> {
-                        labels[task.id] = task;
-                        downloadQueue.push(task, task.group ? 1 : 2);
+                    list.forEach((elements, key) => {
+                        index += elements.length;
+                        elements.forEach((task) => {
+                            if (key !== 3) {
+                                labels[task.id] = {
+                                    id: task.id,
+                                    key: task.name,
+                                    type: task.type,
+                                    parent: task.group
+                                };
+                            }
+                            downloadQueue.push(task, task.group ? 1 : 2);
+                        })
                     });
-                });
+
+                } catch (err) {
+                    console.log('err', err);
+                }
                 started = Date.now();
                 console.log('Started downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
-                interval = setInterval(()=> {
+                interval = setInterval(() => {
                     console.log('Remaing elements to download:', downloadQueue.length() + downloadQueue.running());
                 }, 2500);
                 downloadQueue.drain = () => {
                     downloadQueue.kill();
                     clearInterval(interval);
                     console.log('All elements has been downloaded. Elapsed time in secconds:', (Date.now() - started) / 1000);
+                    try {
 
-                    for (var timetable in   timetables.N) {
-
-                        if (timetables.N[timetable].moodle) {
-                            labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
-
+                        for (var timetable in   timetables.N) {
+                            if (timetables.N[timetable].moodle) {
+                                labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
+                            }
                         }
                     }
+                    catch (err) {
+                        console.log('a', err);
+                    }
+                    try {
 
-                    sections.forEach((section)=> {
-                        labels[section.id].id = group.id;
-                        labels[section.id].name = group.name;
-                        labels[section.id].type = group.type;
-                        labels[section.id].group = section.group;
-                    });
+                        sections.forEach((section) => {
+                            // console.log(section);
+                            labels[section.id].id = section.id;
+                            labels[section.id].key = section.name;
+                            labels[section.id].type = section.type;
+                            labels[section.id].parent = section.group;
+                        })
+                        ;
+                    } catch (err) {
+                        console.log('b', err);
+                    }
+
+                    try {
+// grupy  budynki
+                        list[3].forEach((section) => {
+                            // console.log(section);
+                            if (section.type === 'G') {
+                                labels[section.group] = {
+                                    key: section.group,
+                                    type: 'F'
+                                };
+                            }
+                            if (section.type === 'S') {
+                                labels[section.group] = {
+                                    key: section.group,
+                                    type: 'B'
+                                };
+                            }
+                        });
+                    } catch (err) {
+                        console.log('c', err);
+                    }
+
+
+                    // console.log(labels);
                     resolve({
                         // timetables: timetables,
                         labels: labels
                         // labels: sections
                     });
-                };
-            });
-    });
+                }
+                ;
+            })
+        ;
+    })
+        ;
 };
 exports.expoldeByGroupFromEvent = expoldeByGroupFromEvent;
 /**
@@ -247,9 +314,9 @@ exports.expoldeByTimeFromEvent = expoldeByTimeFromEvent;
  * @return {Promise}
  */
 module.exports = function () {
-    return new Promise((resolve, reject)=> {
+    return new Promise((resolve, reject) => {
         getTimetables()
-            .then((data)=> {
+            .then((data) => {
                 //     id: {type: Number},
                 //     key: {
                 //         type: String,
@@ -323,9 +390,11 @@ module.exports = function () {
 
                 resolve(data);
             })
-            .catch((err)=> {
+            .catch((err) => {
                 console.log(err);
                 reject(err);
-            });
-    });
+            })
+        ;
+    })
+        ;
 };

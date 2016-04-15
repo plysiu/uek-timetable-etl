@@ -1,7 +1,7 @@
 'use strict';
 var mongoose = require('mongoose'),
-    Event = require('./models/event'),
-    async = require('async'),
+    Event = require('uekplan-models/event'),
+    Label = require('uekplan-models/label'),
 
     winston = require('winston');
 
@@ -23,10 +23,71 @@ db.on('error', () => {
 });
 db.once('open', () => {
     console.log('Connection to database established.');
+
+    Event.remove().then((data)=> {
+        console.log('Removed events');
+    });
+
+    //
+
+    new Promise((resolve, reject)=> {
+
+        try {
+            resolve(JSON.parse(fs.readFileSync('./data.json')));
+        } catch (err) {
+            resolve(require('./transform')());
+
+        }
+    })
+        .then((data)=> {
+
+            try {
+                JSON.parse(fs.readFileSync('./data.json'));
+            } catch (err) {
+
+                fs.writeFileSync('./data.json', JSON.stringify(data));
+            }
+
+            return data;
+        })
+
+
+        .then((data)=> {
+            console.log('X');
+            try {
+                for (var item in data.labels) {
+                    // console.log(item);
+                    Label.findOneAndUpdate({key: data.labels[item].key}, data.labels[item], {upsert: true}).then((w)=> {
+                        console.log('Y');
+                    }).catch((err)=> {
+                        console.log(err);
+                    })
+                }
+
+
+                // do something with the document
+            }
+            catch (err) {
+                console.log(err);
+            }
+            // Label.insert(data.labels).then((res)=> {
+            //     console.log(res)
+            // }).catch((err)=> {
+            //     console.log(err);
+            // })
+
+            // console.log(data);
+            // process.exit();
+
+        }).catch((err)=> {
+        console.log(err);
+        process.exit();
+
+    });
+
+
 });
-Event.remove().then((data)=> {
-    console.log('Removed events');
-});
+
 
 //
 // function transformTutorsData(data) {
@@ -121,15 +182,3 @@ Event.remove().then((data)=> {
 //
 //
 //
-//
-require('./transform')()
-    .then((data)=> {
-
-        console.log(data);
-        process.exit();
-
-    }).catch((err)=> {
-    console.log(err);
-    process.exit();
-
-});
