@@ -49,8 +49,7 @@ function expoldeByTimeFromEvent(event) {
     if (event instanceof Array) {
         event.forEach((item) => {
             events = events.concat(expoldeByTimeFromEvent(item));
-        })
-        ;
+        });
     } else {
         var eventBlock,
             groups = [];
@@ -59,8 +58,7 @@ function expoldeByTimeFromEvent(event) {
                 eventBlock = Object.assign({}, event);
                 eventBlock.group = item;
                 events.push(eventBlock);
-            })
-            ;
+            });
         } else {
             events.push(event);
         }
@@ -78,8 +76,7 @@ function expoldeByGroupFromEvent(event) {
     if (event instanceof Array) {
         event.forEach((item) => {
             events = events.concat(expoldeByGroupFromEvent(item));
-        })
-        ;
+        });
     }
     else {
         var eventBlock,
@@ -128,67 +125,142 @@ function expoldeByGroupFromEvent(event) {
     }
     return events;
 };
+
+function createCreateLabelsFromList(labels, list) {
+    console.log('Start:createCreateLabelsFromList');
+    list.forEach((elements, key) => {
+        elements.forEach((task) => {
+            try {
+                if (key !== 3) {
+                    /// change it
+                    if (!labels[task.id]) {
+                        labels[task.id] = {};
+                    }
+                    labels[task.id].id = task.id;
+                    labels[task.id].key = task.name;
+                    labels[task.id].type = task.type;
+                    labels[task.id].parentText = task.group;
+                    labels[task.id].orginal = true;
+                }
+            } catch (err) {
+                console.log(labels[task.id], task, err);
+            }
+        })
+    });
+    console.log('Stop:createCreateLabelsFromList');
+    return labels;
+}
+/**
+ *
+ * @param labels
+ * @param list
+ * @return {*}
+ */
+function addSectionsLabels(labels, list) {
+    console.log('Start:addSectionsLabels');
+    list[3].forEach((section) => {
+        try {
+
+            if (section.type === 'G') {
+                labels[section.group] = {
+                    key: section.group,
+                    type: 'F'
+                };
+            }
+            if (section.type === 'S') {
+                labels[section.group] = {
+                    key: section.group,
+                    type: 'B'
+                };
+            }
+            if (section.type === 'N') {
+                labels[section.group] = {
+                    key: section.group,
+                    type: 'C'
+                };
+            }
+        } catch (err) {
+            console.log(err);
+        }
+    });
+
+    console.log('Stop:addSectionsLabels');
+    return labels;
+};
+function appendToLabelsMoodleId(labels, timetables) {
+    console.log('Start:appendToLabelsMoodleId');
+    for (var timetable in  timetables.N) {
+        if (timetables.N[timetable].moodle) {
+            labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
+        }
+    }
+    console.log('Stop:appendToLabelsMoodleId');
+
+    return labels;
+}
+
+function addLabelsFromSections(labels, sections) {
+    console.log('Start:addLabelsFromSections');
+    sections.forEach((section) => {
+        labels[section.id].id = section.id;
+        labels[section.id].key = section.name;
+        labels[section.id].type = section.type;
+        labels[section.id].parentText = section.group;
+        labels[section.id].orginal = true;
+    });
+    console.log('Stop:addLabelsFromSections');
+    return labels;
+}
+
+
+
+
 /**
  *
  * @return {Promise}
  */
-function getTimetables() {
+function getTimetables(labels) {
     return new Promise((resolve, reject) => {
-        Promise.all([
-            UEK.getLecturersList(),
-            UEK.getRoomsList(),
-            UEK.getGroupsList(),
-            UEK.getSectionsList()])
-            .then((list) => {
+        try {
+            Promise.all([
+                    UEK.getLecturersList(),
+                    UEK.getRoomsList(),
+                    UEK.getGroupsList(),
+                    UEK.getSectionsList()])
+                .then((list) => {
 
+                    var downloadQueue, interval, started,
+                        index = 0,
+                        sections = [],
+                        timetables = {
+                            'N': {}, 'S': {}, 'G': {}
+                        };
+                    downloadQueue = async.priorityQueue((task, callback) => {
+                        if (typeof task.group !== 'undefined') {
 
-                var downloadQueue, interval, started,
-                    index = 0,
-                    labels = {},
-                    sections = [],
-                    timetables = {
-                        'N': {},
-                        'S': {},
-                        'G': {}
-                    };
-
-
-                downloadQueue = async.priorityQueue((task, callback) => {
-                        if (typeof task.group !== 'undefined'
-                        ) {
                             UEK.getSection(task)
                                 .then((data) => {
                                     sections = sections.concat(data);
                                     data.forEach((addTask) => {
-                                        if (
-                                            !timetables[addTask.type] && !timetables[addTask.type][addTask.id]
-                                        ) {
+                                        if (!timetables[addTask.type] && !timetables[addTask.type][addTask.id]) {
                                             downloadQueue.push(addTask, 2, (err) => {
-                                                    if (err) {
-                                                        console.log(err);
-                                                    }
+                                                if (err) {
+                                                    console.log(err);
                                                 }
-                                            )
-                                            ;
-                                            callback();
+                                            });
                                         }
-                                    })
-                                    ;
+                                    });
                                     callback();
                                 })
                                 .catch((err) => {
                                     downloadQueue.push(task, 1, (err) => {
-                                            if (err) {
-                                                console.log(err);
-                                            }
+                                        if (err) {
+                                            console.log(err);
                                         }
-                                    )
-                                    ;
+                                    });
                                     callback();
-                                })
-                            ;
-                        }
-                        else {
+                                });
+                        } else {
                             UEK.getTimetableOf(task)
                                 .then((data) => {
                                     timetables[data.type][data.id] = data;
@@ -200,106 +272,51 @@ function getTimetables() {
                                                 console.log(err);
                                             }
                                         }
-                                    )
-                                    ;
+                                    );
                                     callback();
-                                })
-                            ;
+                                });
                         }
-                    },
-                    200
-                )
-                ;
-                try {
-
+                    }, 100);
 
                     list.forEach((elements, key) => {
                         index += elements.length;
                         elements.forEach((task) => {
-                            if (key !== 3) {
-                                labels[task.id] = {
-                                    id: task.id,
-                                    key: task.name,
-                                    type: task.type,
-                                    parent: task.group
-                                };
-                            }
                             downloadQueue.push(task, task.group ? 1 : 2);
-                        })
-                    });
-
-                } catch (err) {
-                    console.log('err', err);
-                }
-                started = Date.now();
-                console.log('Started downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
-                interval = setInterval(() => {
-                    console.log('Remaing elements to download:', downloadQueue.length() + downloadQueue.running());
-                }, 2500);
-                downloadQueue.drain = () => {
-                    downloadQueue.kill();
-                    clearInterval(interval);
-                    console.log('All elements has been downloaded. Elapsed time in secconds:', (Date.now() - started) / 1000);
-                    try {
-
-                        for (var timetable in   timetables.N) {
-                            if (timetables.N[timetable].moodle) {
-                                labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
-                            }
-                        }
-                    }
-                    catch (err) {
-                        console.log('a', err);
-                    }
-                    try {
-
-                        sections.forEach((section) => {
-                            // console.log(section);
-                            labels[section.id].id = section.id;
-                            labels[section.id].key = section.name;
-                            labels[section.id].type = section.type;
-                            labels[section.id].parent = section.group;
-                        })
-                        ;
-                    } catch (err) {
-                        console.log('b', err);
-                    }
-
-                    try {
-// grupy  budynki
-                        list[3].forEach((section) => {
-                            // console.log(section);
-                            if (section.type === 'G') {
-                                labels[section.group] = {
-                                    key: section.group,
-                                    type: 'F'
-                                };
-                            }
-                            if (section.type === 'S') {
-                                labels[section.group] = {
-                                    key: section.group,
-                                    type: 'B'
-                                };
-                            }
                         });
-                    } catch (err) {
-                        console.log('c', err);
-                    }
-
-
-                    // console.log(labels);
-                    resolve({
-                        // timetables: timetables,
-                        labels: labels
-                        // labels: sections
                     });
-                }
-                ;
-            })
-        ;
-    })
-        ;
+
+                    started = Date.now();
+                    console.log('Started downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
+                    interval = setInterval(() => {
+                        console.log('Remaing elements to download:', downloadQueue.length() + downloadQueue.running());
+                    }, 2500);
+
+                    downloadQueue.drain = () => {
+                        downloadQueue.kill();
+                        clearInterval(interval);
+                        console.log('All elements has been downloaded. Elapsed time in secconds:', (Date.now() - started) / 1000);
+
+
+                        labels = createCreateLabelsFromList(labels, list);
+                        labels = appendToLabelsMoodleId(labels, timetables);
+                        labels = addLabelsFromSections(labels, sections);
+                        labels = addSectionsLabels(labels, list);
+                        // labels = updateLabelsValue(labels, timetables);
+
+                        resolve({
+                            timetables: timetables,
+                            labels: labels
+                        });
+                    };
+                });
+        } catch (err) {
+            reject(err);
+        }
+    });
+
 };
+exports.updateLabelsValue = updateLabelsValue;
+
 exports.expoldeByGroupFromEvent = expoldeByGroupFromEvent;
 /**
  *
@@ -313,88 +330,15 @@ exports.expoldeByTimeFromEvent = expoldeByTimeFromEvent;
  *
  * @return {Promise}
  */
-module.exports = function () {
+module.exports = function (labels) {
     return new Promise((resolve, reject) => {
-        getTimetables()
+        getTimetables(labels)
             .then((data) => {
-                //     id: {type: Number},
-                //     key: {
-                //         type: String,
-                //             require: true,
-                //             trim: true
-                //     },
-                //     value: {
-                //         type: String,
-                //             trim: true
-                //     }
-                //     type: {
-                //         type: String,
-                //     enum: [
-                //             //Group
-                //             'G',
-                //             //Building
-                //             'B',
-                //             //Room
-                //             'S',
-                //             //Tutor
-                //             'N',
-                //             //Field
-                //             'F',
-                //             //Unknown to validate
-                //             '?'
-                //         ],
-                //             require: true,
-                //     default: '?'
-                //     },
-                //     moodleId: {type: Number}
-                //     parentId: {type: mongoose.Schema.Types.ObjectId}
-                //
-                // var labels = [];
-                // for (var groups in data.labels) {
-                //     {
-                //     }
-                // }
-
-                //
-                // function findTutorNameInRoomsFromEvent(eventQuery) {
-                //     data.timetables.S[eventQuery.place].events.forEach((event)=> {
-                //         if (eventQuery.date === event.date &&
-                //             eventQuery.from === event.from &&
-                //             event.tutor) {
-                //             return event.tutor;
-                //         }
-                //     });
-                //     return;
-                // };
-                // function findReplacmentNameForTutor(timetable) {
-                //     timetable.events.forEach((event)=> {
-                //         if (event.place) {
-                //             return findTutorNameInRoomsFromEvent(event);
-                //         }
-                //     });
-                //     return;
-                // };
-                // /**
-                //  * Adds new rule if found reversed tutor name
-                //  */
-                // for (var timetable in data.timetables.N) {
-                //     console.log(data.timetables.N[timetable].name);
-                //
-                //     var name = findReplacmentNameForTutor(data.timetables.N[timetable]);
-                //
-                //     if (typeof name !== 'undefined') {
-                //         data.timetables.N[timetable].name = name;
-                //     }
-                // }
-
 
                 resolve(data);
             })
             .catch((err) => {
-                console.log(err);
                 reject(err);
-            })
-        ;
-    })
-        ;
+            });
+    });
 };
