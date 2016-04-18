@@ -24,68 +24,90 @@ db.on('error', () => {
 db.once('open', () => {
     console.log('Connection to database established.');
 
-    Event.remove().then((data)=> {
-        console.log('Removed events');
-    });
-
-    //
+    var labels = {};
 
     new Promise((resolve, reject)=> {
 
-        try {
+        if (fs.existsSync('./data.json')) {
+            console.log('Cache:read');
             resolve(JSON.parse(fs.readFileSync('./data.json')));
-        } catch (err) {
-            resolve(require('./transform')());
+        } else {
 
+            Label.find()
+                .then((data) => {
+                    data.forEach((element)=> {
+                        labels[element.id] = element.toObject();
+                    });
+                    resolve(require('./transform')(labels));
+                })
+                .catch((err)=> {
+                    reject(err);
+                });
         }
     })
         .then((data)=> {
+            // try {
+            //     JSON.parse(fs.readFileSync('./data.json'));
+            // } catch (err) {
+            console.log('Cache:write');
 
-            try {
-                JSON.parse(fs.readFileSync('./data.json'));
-            } catch (err) {
-
-                fs.writeFileSync('./data.json', JSON.stringify(data));
-            }
-
+            fs.writeFileSync('./data.json', JSON.stringify(data));
+            // }
             return data;
         })
+        
+        
+        
 
 
         .then((data)=> {
-            console.log('X');
-            try {
+            console.log('Labels:add:start');
+            return new Promise((resolve, reject)=> {
+                var x = [];
                 for (var item in data.labels) {
-                    // console.log(item);
-                    Label.findOneAndUpdate({key: data.labels[item].key}, data.labels[item], {upsert: true}).then((w)=> {
-                        console.log('Y');
-                    }).catch((err)=> {
-                        console.log(err);
-                    })
+                    x.push(Label.findOneAndUpdate({key: data.labels[item].key}, data.labels[item], {upsert: true}))
                 }
+                Promise.all(x)
+                    .then(()=> {
+                        console.log('Labels:add:stop');
+                        resolve(data);
+                    }).catch((err)=> {
+                    reject(err);
+                })
+            });
+        })
+        .then((data)=> {
+            return new Promise((resolve, reject)=> {
+                console.log('Labels:parrentUpdate:start');
+                Label.find()
+                    .or([{type: 'F'}, {type: 'B'}, {type: 'C'}])
+                    .then((res)=> {
+                        var x = [];
+                        res.forEach((item)=> {
+                            x.push(Label.update({parentText: item.key}, {parentId: item._id}, {
+                                multi: true,
+                                upsert: true
+                            }));
+                        });
+                        Promise.all(x).then(()=> {
+                            console.log('Labels:parrentUpdate:stop');
+                            resolve(data);
+                        });
+                    })
+                    .catch((err)=> {
+                        reject(err);
+                    })
+            })
+        }).then((data)=> {
+        console.log('Timetables:addMongoId:start');
+        console.log(data.labels);
 
+    })
+        .catch((err)=> {
+            console.log(err);
+            process.exit();
 
-                // do something with the document
-            }
-            catch (err) {
-                console.log(err);
-            }
-            // Label.insert(data.labels).then((res)=> {
-            //     console.log(res)
-            // }).catch((err)=> {
-            //     console.log(err);
-            // })
-
-            // console.log(data);
-            // process.exit();
-
-        }).catch((err)=> {
-        console.log(err);
-        process.exit();
-
-    });
-
-
+        });
 });
 
 
