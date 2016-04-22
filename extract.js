@@ -18,15 +18,14 @@ function parseData(input) {
             }
         });
     });
-};
+}
 /**
  *
  * @param data
  * @return {string|*|SchemaType}
- * @todo refactor and use in other places
  */
 function extractValue(data) {
-    if (typeof data === 'object') {
+    if (data) {
         if (data instanceof Array) {
             if (typeof data[0] === 'string') {
                 return data[0];
@@ -34,12 +33,16 @@ function extractValue(data) {
                 return data[0]['_'];
             }
         } else {
-            return;
+            if (typeof data === 'string') {
+                return data;
+            } else {
+                console.log('Wystąpił błąd podczas transformacji wartości:', typeof data, data);
+            }
         }
     } else {
-        return;
+        // console.log('Wystąpił błąd podczas transformacji wartości:', typeof data, data);
     }
-};
+}
 /**
  *
  * @param data
@@ -49,14 +52,14 @@ function extractList(data) {
     var list = [];
     data['plan-zajec']['zasob'].forEach((element)=> {
         list.push({
-            id: element['$']['id'],
+            timetableId: element['$']['id'],
             name: element['$']['nazwa'],
             type: element['$']['typ'],
             group: data['plan-zajec']['$']['grupa']
         });
     });
     return list;
-};
+}
 /**
  *
  * @param a
@@ -65,7 +68,7 @@ function extractList(data) {
  */
 function sortData(a, b) {
     return b.name.length - a.name.length;
-};
+}
 /**
  *
  * @param url {string}
@@ -81,7 +84,7 @@ function download(url) {
                 reject(err);
             });
     });
-};
+}
 /**
  *
  * @param data
@@ -92,11 +95,11 @@ function extractSections(data) {
     data['plan-zajec']['grupowanie'].forEach((item)=> {
         sections.push({
             type: item['$']['typ'],
-            group: item['$']['grupa'],
+            group: item['$']['grupa']
         });
     });
     return sections;
-};
+}
 /**
  *
  * @param taskij
@@ -118,7 +121,7 @@ exports.getSectionsList = function () {
 };
 /**
  *
- * @param task {type: String, group: String}
+ * @param section P{type: string, group: string}}
  * @returns {Promise}
  */
 exports.getSection = function (section) {
@@ -147,11 +150,9 @@ exports.getLecturersList = function () {
     return new Promise((resolve, reject)=> {
         download('?typ=N&xml')
             .then((data)=> {
-
                 resolve(extractList(data).sort((a, b) => {
                     return sortData(a, b);
                 }));
-
             })
             .catch((err)=> {
                 console.log('Wystąpił błąd podczas pobierania listy nauczycieli', err);
@@ -207,7 +208,7 @@ exports.getFields = function () {
                     if (element.type === 'G') {
                         list.push(element.name);
                     }
-                })
+                });
                 resolve(list);
             })
             .catch((err)=> {
@@ -228,7 +229,7 @@ exports.getBuildings = function () {
                     if (element.type === 'S') {
                         list.push(element.name);
                     }
-                })
+                });
                 resolve(list);
             })
             .catch((err)=> {
@@ -241,7 +242,7 @@ exports.getBuildings = function () {
  * @param data
  * @param type
  * @param name
- * @return {Array:{date: String, day: String, from: String, to: String, activity: String, type: String, tutor: String, group: String, place: String, note: String}}
+ * @return {Array}
  */
 function extractTimetableEvents(data, type, name) {
     var events = [];
@@ -276,31 +277,28 @@ function extractTimetableEvents(data, type, name) {
         });
     }
     return events;
-};
+}
 /**
- *
  * @param data
- * @return {{id: number|undefined, type: String, name: String, moodle: number|undefined, events: Array}}
+ * @return {{timetableId: number, type: string, name: string, moodle: number, events: Array}}
  */
 function extractTimetable(data) {
     return {
-        id: data['plan-zajec']['$']['id'],
+        timetableId: data['plan-zajec']['$']['id'],
         type: data['plan-zajec']['$']['typ'],
         name: data['plan-zajec']['$']['nazwa'],
         moodle: data['plan-zajec']['$']['idcel'],
         events: extractTimetableEvents(data['plan-zajec']['zajecia'], data['plan-zajec']['$']['typ'], data['plan-zajec']['$']['nazwa'])
     };
-};
+}
 /**
- *
- * @param task
- * @returns {Promise}
+ * @param timetable {{timetableId: string, type: string, name: string, group: undefined}}
+ * @return {Promise}
  */
 exports.getTimetableOf = function (timetable) {
     return new Promise((resolve, reject)=> {
-        download('?typ=' + timetable.type + '&id=' + timetable.id + '&okres=3&xml')
+        download('?typ=' + timetable.type + '&id=' + timetable.timetableId + '&okres=3&xml')
             .then((data)=> {
-
                 resolve(extractTimetable(data));
             })
             .catch((err)=> {
