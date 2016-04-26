@@ -6,11 +6,13 @@
  */
 function updateLabelsFromList(labels, list) {
     console.log('start:updateLabelsFromList');
-    list.forEach((elements, key) => {
+    list.forEach((elements) => {
         elements.forEach((task) => {
             try {
-                if (key !== 3) {
-                    if (!labels[task.timetableId]) {
+
+
+                if (task.group === undefined) {
+                    if (labels[task.timetableId] === undefined) {
                         labels[task.timetableId] = {};
                     }
                     labels[task.timetableId].timetableId = task.timetableId;
@@ -19,9 +21,10 @@ function updateLabelsFromList(labels, list) {
                     labels[task.timetableId].parentText = task.group;
                     labels[task.timetableId].orginal = true;
                 } else {
-                    if (!labels[task.group]) {
+                    if (labels[task.group] === undefined) {
                         labels[task.group] = {};
                     }
+
                     labels[task.group].key = task.group;
                     labels[task.group].orginal = true;
                     switch (task.type) {
@@ -39,7 +42,7 @@ function updateLabelsFromList(labels, list) {
                     }
                 }
             } catch (err) {
-                console.log('Wystąpił błąd:', task, err);
+                console.log(err, task, typeof task);
             }
         })
     });
@@ -110,18 +113,14 @@ function updateLabelsFromTimetables(labels, timetables) {
 function addLabelsFromSections(labels, sections) {
     console.log('Start:addLabelsFromSections');
     sections.forEach((section) => {
-        try {
-            var id =section.timetableId || section.name;
-            if (!labels[id]) {
-                labels[id] = {};
-            }
-            labels[id].key = section.name;
-            labels[id].type = section.type;
-            labels[id].parentText = section.group;
-            labels[id].orginal = true;
-        } catch (err) {
-            console.log('f', err);
+        var id = section.timetableId || section.name;
+        if (typeof labels[id] === undefined) {
+            labels[id] = {};
         }
+        labels[id].key = section.name;
+        labels[id].type = section.type;
+        labels[id].parentText = section.group;
+        labels[id].orginal = true;
     });
     console.log('Stop:addLabelsFromSections');
     return labels;
@@ -133,13 +132,14 @@ function addLabelsFromSections(labels, sections) {
  */
 module.exports = function (data) {
     return new Promise((resolve, reject)=> {
-        try {
-            data.labels = updateLabelsFromList(data.labels, data.list);
-            data.labels = updateLabelsFromTimetables(data.labels, data.timetables);
-            data.labels = addLabelsFromSections(data.labels, data.sections);
-            resolve(data);
-        } catch (err) {
-            reject(err);
-        }
-    });
+        require('./labels')
+            .loadLabels()
+            .then((labels)=> {
+                labels = updateLabelsFromList(labels, data.list);
+                labels = updateLabelsFromTimetables(labels, data.timetable);
+                labels = addLabelsFromSections(labels, data.sections);
+                data.labels = labels;
+                resolve(data);
+            })
+    })
 };

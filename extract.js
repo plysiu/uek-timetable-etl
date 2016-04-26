@@ -1,10 +1,10 @@
 "use strict";
-
 var xml2js = require('xml2js'),
-    rp = require('request-promise');
-var querystring = require('querystring');
+    rp = require('request-promise'),
+    querystring = require('querystring'),
+    async = require('async');
+
 /**
- *
  * @param input
  * @return {Promise}
  */
@@ -20,7 +20,6 @@ function parseData(input) {
     });
 }
 /**
- *
  * @param data
  * @return {string|*|SchemaType}
  */
@@ -44,7 +43,6 @@ function extractValue(data) {
     }
 }
 /**
- *
  * @param data
  * @return {Array}
  */
@@ -61,7 +59,6 @@ function extractList(data) {
     return list;
 }
 /**
- *
  * @param a
  * @param b
  * @return {number}
@@ -70,8 +67,7 @@ function sortData(a, b) {
     return b.name.length - a.name.length;
 }
 /**
- *
- * @param url {string}
+ * @param url {sring}
  * @return {Promise}
  */
 function download(url) {
@@ -86,7 +82,6 @@ function download(url) {
     });
 }
 /**
- *
  * @param data
  * @return {Array}
  */
@@ -101,7 +96,6 @@ function extractSections(data) {
     return sections;
 }
 /**
- *
  * @param taskij
  * @returns {Promise}
  */
@@ -120,7 +114,6 @@ exports.getSectionsList = function () {
     });
 };
 /**
- *
  * @param section P{type: string, group: string}}
  * @returns {Promise}
  */
@@ -143,7 +136,6 @@ exports.getSection = function (section) {
     });
 };
 /**
- *
  * @return {Promise}
  */
 exports.getLecturersList = function () {
@@ -178,7 +170,6 @@ exports.getGroupsList = function () {
     });
 };
 /**
- *
  * @return {Promise}
  */
 exports.getRoomsList = function () {
@@ -196,7 +187,6 @@ exports.getRoomsList = function () {
     });
 };
 /**
- *
  * @return {Promise}
  */
 exports.getFields = function () {
@@ -217,7 +207,6 @@ exports.getFields = function () {
     });
 };
 /**
- *
  * @return {Promise}
  */
 exports.getBuildings = function () {
@@ -238,7 +227,6 @@ exports.getBuildings = function () {
     });
 };
 /**
- *
  * @param data
  * @param type
  * @param name
@@ -307,3 +295,90 @@ exports.getTimetableOf = function (timetable) {
             });
     });
 };
+/**
+ *
+ * @returns {Promise}
+ */
+exports.downloadAll = function () {
+    return new Promise((resolve, reject) => {
+        Promise.all([
+            this.getLecturersList(),
+            this.getRoomsList(),
+            this.getGroupsList(),
+            this.getSectionsList()])
+            .then((list) => {
+                var downloadQueue, interval, started,
+                    index = 0,
+                    sections = [],
+                    timetables = {
+                        'N': {}, 'S': {}, 'G': {}
+                    };
+                downloadQueue = async.priorityQueue((task, callback) => {
+                    if (typeof task.group !== 'undefined') {
+
+                        this.getSection(task)
+                            .then((data) => {
+                                sections = sections.concat(data);
+                                data.forEach((addTask) => {
+                                    if (!timetables[addTask.type] && !timetables[addTask.type][addTask.timetableId]) {
+                                        downloadQueue.push(addTask, 2, (err) => {
+                                            if (err) {
+                                                console.log(err);
+                                            }
+                                        });
+                                    }
+                                });
+                                callback();
+                            })
+                            .catch((err) => {
+                                downloadQueue.push(task, 1, (err) => {
+                                    if (err) {
+                                        console.log(err);
+                                    }
+                                });
+                                callback();
+                            });
+                    } else {
+                        this.getTimetableOf(task)
+                            .then((data) => {
+                                timetables[data.type][data.timetableId] = data;
+                                callback();
+                            })
+                            .catch((err) => {
+                                downloadQueue.push(task, 2, (err) => {
+                                        if (err) {
+                                            console.log(err);
+                                        }
+                                    }
+                                );
+                                callback();
+                            });
+                    }
+                }, process.env.UEKPLAN_CONCURRENT || 100);
+
+
+                list.forEach((tasks) => {
+                    index += tasks.length;
+                    tasks.forEach((task) => {
+                        downloadQueue.push(task, task.group ? 1 : 2);
+                    });
+                });
+
+                started = Date.now();
+                console.log('Started downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
+                interval = setInterval(() => {
+                    console.log('Remaing elements to download:', downloadQueue.length() + downloadQueue.running());
+                }, 2500);
+                downloadQueue.drain = () => {
+                    downloadQueue.kill();
+                    clearInterval(interval);
+                    console.log('All elements has been downloaded. Elapsed time in secconds:', (Date.now() - started) / 1000);
+                    resolve({
+                        timetables: timetables,
+                        sections: sections,
+                        list: list
+                    });
+                };
+            });
+    });
+}
