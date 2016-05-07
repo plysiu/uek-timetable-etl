@@ -1,51 +1,46 @@
 /**
+ *
  * @param labels
  * @param list collection of all list avaibled from extract;
  * @return {*}
  */
 function updateLabelsFromList(labels, list) {
-    console.log('Update labels from download list');
+    console.log('updating labels from tasks');
     list.forEach((elements) => {
         elements.forEach((task) => {
             if (task.group === undefined) {
-                if labels[task.timetableId] === undefined)
-        {
-            labels[task.timetableId] = {};
-        }
-        labels[task.timetableId].timetableId = task.timetableId;
-        labels[task.timetableId].key = task.name;
-        labels[task.timetableId].type = task.type;
-        labels[task.timetableId].parentText = task.group;
-        labels[task.timetableId].orginal = true;
-    }
-else
-    {
-        if (labels[task.group] === undefined) {
-            labels[task.group] = {};
-        }
+                if (labels[task.timetableId] === undefined) {
+                    labels[task.timetableId] = {};
+                }
+                labels[task.timetableId].timetableId = task.timetableId;
+                labels[task.timetableId].key = task.name;
+                labels[task.timetableId].type = task.type;
+                labels[task.timetableId].parentText = task.group;
+                labels[task.timetableId].orginal = true;
+            } else {
+                if (labels[task.group] === undefined) {
+                    labels[task.group] = {};
+                }
 
-        labels[task.group].key = task.group;
-        labels[task.group].orginal = true;
-        switch (task.type) {
-            case 'G':
-                labels[task.group].type = 'F';
-                break;
-            case 'S':
-                labels[task.group].type = 'b';
-                break;
-            case 'N':
-                labels[task.group].type = 'C';
-                break;
-            default:
-                throw new Error('Unknown task type');
-        }
-    }
-}
-)
-;
-})
-;
-return labels;
+                labels[task.group].key = task.group;
+                labels[task.group].orginal = true;
+                switch (task.type) {
+                    case 'G':
+                        labels[task.group].type = 'F';
+                        break;
+                    case 'S':
+                        labels[task.group].type = 'b';
+                        break;
+                    case 'N':
+                        labels[task.group].type = 'C';
+                        break;
+                    default:
+                        throw new Error('Unknown task type');
+                }
+            }
+        });
+    });
+    return labels;
 }
 
 function findTimetableIdFromLabels(labels, key) {
@@ -77,35 +72,29 @@ function timetableHaveEvents(timetable) {
 }
 
 function updateLabelsFromTimetables(labels, timetables) {
-    console.log('start:updateLabelsFromTimetables');
-    try {
-
-
-        var x = 0;
-        for (var timetable in timetables.N) {
-            if (timetables.N[timetable].moodle) {
-                labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
-            }
+    console.log('updating labels from timetables');
+    var x = 0;
+    for (var timetable in timetables.N) {
+        if (timetables.N[timetable].moodle) {
+            labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
         }
-        for (var label in labels) {
-            if (labels[label].type === 'N') {
-                var tutorTimetableId = labels[label].timetableId;
-                if (timetableHaveEvents(timetables.N[tutorTimetableId])) {
-                    for (var i = 0; i < timetables.N[tutorTimetableId].events.length; i++) {
-                        var k = findTimetableIdFromLabels(labels, timetables.N[tutorTimetableId].events[i].place);
-                        var searchedEvent = findEventInTimetable(timetables.N[tutorTimetableId].events[i], timetables.S[k]);
-                        if (searchedEvent !== undefined) {
-                            labels[label].value = searchedEvent.tutor;
-                            break;
-                        }
+    }
+    for (var label in labels) {
+        if (labels[label].type === 'N') {
+            var tutorTimetableId = labels[label].timetableId;
+            if (timetableHaveEvents(timetables.N[tutorTimetableId])) {
+                for (var i = 0; i < timetables.N[tutorTimetableId].events.length; i++) {
+                    var k = findTimetableIdFromLabels(labels, timetables.N[tutorTimetableId].events[i].place);
+                    var searchedEvent = findEventInTimetable(timetables.N[tutorTimetableId].events[i], timetables.S[k]);
+                    if (searchedEvent !== undefined) {
+                        labels[label].value = searchedEvent.tutor.trim();
+                        break;
                     }
                 }
             }
         }
-    } catch (err) {
-        console.log(err);
+
     }
-    console.log('stop:updateLabelsFromTimetables');
     return labels;
 }
 /**
@@ -115,10 +104,10 @@ function updateLabelsFromTimetables(labels, timetables) {
  * @return {*}
  */
 function addLabelsFromSections(labels, sections) {
-    console.log('Start:addLabelsFromSections');
+    console.log('updating labels from sections');
     sections.forEach((section) => {
         var id = section.timetableId || section.name;
-        if (typeof labels[id] === undefined) {
+        if (labels[id] === undefined) {
             labels[id] = {};
         }
         labels[id].key = section.name;
@@ -126,7 +115,6 @@ function addLabelsFromSections(labels, sections) {
         labels[id].parentText = section.group;
         labels[id].orginal = true;
     });
-    console.log('Stop:addLabelsFromSections');
     return labels;
 }
 /**
@@ -140,10 +128,10 @@ module.exports = function (data) {
             .loadLabels()
             .then((labels)=> {
                 labels = updateLabelsFromList(labels, data.list);
-                labels = updateLabelsFromTimetables(labels, data.timetable);
+                labels = updateLabelsFromTimetables(labels, data.timetables);
                 labels = addLabelsFromSections(labels, data.sections);
                 data.labels = labels;
                 resolve(data);
-            })
+            });
     })
 };

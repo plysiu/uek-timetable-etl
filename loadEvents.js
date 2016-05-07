@@ -4,7 +4,7 @@ module.exports = function (events) {
     return updateDatabase(events);
 };
 function updateDatabase(events) {
-    console.log('Events:add:start');
+    console.log('Inserting events to db');
     return new Promise((resolve, reject)=> {
         var promiseList = [];
         events.forEach((event)=> {
@@ -25,7 +25,6 @@ function updateDatabase(events) {
 
         Promise.all(promiseList)
             .then((data)=> {
-                console.log('Events:add:stop');
                 resolve(data);
             }).catch((err)=> {
             reject(err);

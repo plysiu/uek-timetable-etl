@@ -1,14 +1,63 @@
 'use strict';
 var models = require('uekplan-models');
 /**
- *
+ * @todo add event type as labels
+ * @returns {Promise}
  */
-exports.loadLabels = ()=> {
-    console.log('Load labels from db');
+var updateParentsId = () => {
+    return new Promise((resolve, reject)=> {
+        console.log('Labels:parrentUpdate:start');
+        models.label.findAll({
+            where: {
+                $or: [
+                    {type: 'F'},
+                    {type: 'B'},
+                    {type: 'C'}
+                ]
+            }, order: [
+                [models.sequelize.fn('', models.sequelize.col('key')), 'DESC'],
+                ['key', 'DESC']
+            ]
+        }).then((res)=> {
+            var promiseList = [];
+            res.forEach((item)=> {
+                promiseList.push(models.label.update(
+                    {
+                        parentId: item.dataValues.id
+                    }, {
+                        where: {
+                            parentText: item.dataValues.key
+                        }
+                    }
+                ));
+            });
+
+            Promise.all(promiseList)
+                .then(()=> {
+                    resolve(loadLabels());
+                })
+                .catch((err)=> {
+                    reject(err);
+                })
+        }).catch((err)=> {
+            reject(err);
+        });
+    });
+}
+/**
+ *
+ * @returns {Promise}
+ */
+var loadLabels = ()=> {
+    console.log('Loading labels from db');
     return new Promise((resolve, reject)=> {
         models.label.findAll({
-            where: {type: {$ne: '?'}},
-            order: [[models.sequelize.fn('character_length', models.sequelize.col('key')), 'DESC']]
+            where: {
+                type: {$ne: '?'}
+            },
+            order: [
+                [models.sequelize.fn('character_length', models.sequelize.col('key')), 'DESC']
+            ]
         })
             .then((data) => {
                 var labels = {};
@@ -20,56 +69,36 @@ exports.loadLabels = ()=> {
             .catch((err)=> {
                 reject(err);
             });
-    })
+    });
 }
 
-exports.updateLabels = (labels)=> {
+var updateLabels = (labels)=> {
     return new Promise((resolve, reject)=> {
-        console.log('Update labels id db');
+        console.log('Updating labels in db');
 
         var promiseList = [];
-        for (var item in labels) {
+        for (var label in labels) {
             promiseList.push(models.label.findOrCreate({
-                where: {timetableId: labels[item].timetableId, key: labels[item].key},
-                defaults: labels[item]
+                where: {
+                    timetableId: labels[label].timetableId,
+                    key: labels[label].key
+                },
+                defaults: labels[label]
             }));
         }
         Promise.all(promiseList)
             .then(()=> {
-                console.log('Labels:add:stop');
                 resolve(updateParentsId());
-            }).catch((err)=> {
-            reject(err);
-        });
-    });
-};
-
-function updateParentId() {
-    return new Promise((resolve, reject)=> {
-        console.log('Labels:parrentUpdate:start');
-        models.label.findAll({
-            where: {
-                $or: [{type: 'F'}, {type: 'B'}, {type: 'C'}],
-            }, order: [[models.sequelize.fn('', models.sequelize.col('key')), 'DESC']]
-        })
-            .then((res)=> {
-                var promiseList = [];
-                res.forEach((item)=> {
-                    promiseList.push(models.label.update({parentId: item.dataValues.id}, {where: {parentText: item.dataValues.key}}));
-                });
-
-                Promise.all(promiseList)
-                    .then(()=> {
-                        resolve(this.loadLabels());
-                    })
-                    .catch((err)=> {
-                        reject(err);
-                    })
+            })
+            .catch((err)=> {
+                reject(err);
             });
-    }).catch((err)=> {
-        reject(err);
-    })
+    });
 }
 
+module.exports = {
+    updateLabels: updateLabels,
+    loadLabels: loadLabels
+}
 
 

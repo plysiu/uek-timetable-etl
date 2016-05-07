@@ -1,69 +1,61 @@
+'use strict';
 /**
  * @param timetable
  * @returns {boolean}
  */
-function timetableHaveEvents(timetable) {
+var timetableHaveEvents = (timetable) => {
     return timetable &&
         timetable.events &&
         timetable.events.length > 0 && !timetable.events[0].name.includes('Publikacja tego planu zajęć została zablokowana przez prowadzącego zajęcia');
 }
+
 /**
- * @param event
- * @param groupsLabels
- * @returns {Array}
+ * @param text
+ * @param labels
+ * @param type
+ * @returns {*}
  */
-function explodeGroupsFromEvent(event, labels) {
+var explodeListFromFromEventData = (text, labels, type)=> {
     var list = [];
-    if (event.group) {
+    if (text) {
         labels.forEach((label)=> {
-            if (event.group.includes(label.key) || event.group.includes(label.value)) {
-                event.group = event.group.replace(label.key, '').replace(label.value, '');
+            if (text.includes(label.key) ||
+                text.includes(label.value)) {
+                text = text.replace(label.key, '').replace(label.value, '');
                 list.push(label);
             }
         });
-        event.group = event.group.replace(/, /img, '').trim();
+        text = text.replace(/, /img, '').trim();
+        return {list: list, exception: (text) ? {key: text, type: type} : false};
+    } else {
+        return {list: list, exception: false};
     }
-    return {list: list, exception: {key: event.group, type: 'G'} || {}};
+}
+/**
+ * @param event
+ * @param labels
+ * @returns {*}
+ */
+var explodeGroupsFromEvent = (event, labels) => {
+    return explodeListFromFromEventData(event.group, labels, 'G');
 }
 /**
  * @param event
  * @param tutorsLabes
  * @returns {Array}
  */
-function explodeTutorsFromEvent(event, labels) {
-    var list = [];
-    if (event.tutor) {
-        labels.forEach((label)=> {
-            if (event.tutor.includes(label.key) || event.tutor.includes(label.value)) {
-                event.tutor = event.tutor.replace(label.key, '').replace(label.value, '');
-                list.push(label);
-            }
-        });
-        event.tutor = event.tutor.replace(/, /img, '').trim();
-    }
-    return {list: list, exception: {key: event.tutor, type: 'N'} || {}};
-
+var explodeTutorsFromEvent = (event, labels) => {
+    return explodeListFromFromEventData(event.tutor, labels, 'N');
 }
 /**
+ *
  * @param event
- * @param placesLabels
- * @returns {Array}
+ * @param labels
+ * @returns {*}
  */
-function explodePlacesFromEvent(event, labels) {
-    var list = [];
-    if (event.place) {
-        labels.forEach((label)=> {
-            if (event.place.includes(label.key) || event.place.includes(label.value)) {
-                event.place = event.place.replace(label.key, '').replace(label.value, '');
-                list.push(label);
-            }
-        });
-        event.place = event.place.replace(/, /img, '').trim();
-    }
-    return {list: list, exception: {key: event.place, type: 'S'} || {}};
-
+var explodePlacesFromEvent = (event, labels)=> {
+    return explodeListFromFromEventData(event.place, labels, 'S');
 }
-
 /**
  * @param event
  * @param tutors {Array}
@@ -71,9 +63,33 @@ function explodePlacesFromEvent(event, labels) {
  * @param places {Array}
  * @returns {Array}
  */
-function explodeEvent(event, tutors, groups, places) {
+var explodeEvent = (event, tutors, groups, places)=> {
     var events = [];
-
+    var getDayNumber = (day)=> {
+        switch (day) {
+            case'Pn':
+                return 0;
+                break;
+            case'Wt':
+                return 1;
+                break;
+            case'Śr':
+                return 2;
+                break;
+            case'Cz':
+                return 3;
+                break;
+            case'Pt':
+                return 4;
+                break;
+            case'Sb':
+                return 5;
+                break;
+            case'Nd':
+                return 6;
+                break;
+        }
+    }
     if (!groups) {
         groups = [{id: null}];
     }
@@ -83,13 +99,12 @@ function explodeEvent(event, tutors, groups, places) {
     if (!places) {
         places = [{id: null}];
     }
-
     tutors.forEach((tutor)=> {
         groups.forEach((group)=> {
             places.forEach((place)=> {
                 events.push({
                     date: event.date,
-                    day: event.day,
+                    day: getDayNumber(event.day),
                     from: event.from,
                     to: event.to,
                     activity: event.name,
@@ -106,72 +121,76 @@ function explodeEvent(event, tutors, groups, places) {
 }
 
 /**
- *
  * @param timetable
  * @param label
  * @param labels
  * @returns {Array}
  */
-function explodeEventsFromTimetable(timetable, label, labels) {
-    var events = [];
-    var tutors = [], groups = [], places = [];
+var explodeEventsFromTimetable = (timetable, label, labels)=> {
+        var events = [];
+        var tutors = {list: [], exception: false};
+        var groups = {list: [], exception: false};
+        var places = {list: [], exception: false};
 
-    var exceptions = {};
-    switch (label.type) {
-        case 'N':
-            tutors.push(label);
-            break;
-        case 'G':
-            groups.push(label);
-            break;
-        case 'S':
-            places.push(label);
-            break;
-        default:
-            console.log('Error', label);
-    }
-
-    timetable.events.forEach((event)=> {
+        var exceptions = {};
         switch (label.type) {
             case 'N':
-                groups = explodeGroupsFromEvent(event, labels.groups);
-                exceptions[groups.exception.key] = groups.exception;
-
-                places = explodePlacesFromEvent(event, labels.places);
-                exceptions[places.exception.key] = places.exception;
-
+                tutors.list.push(label);
                 break;
             case 'G':
-                tutors = explodeTutorsFromEvent(event, labels.tutors);
-                exceptions[tutors.exception.key] = tutors.exception;
-
-                places = explodePlacesFromEvent(event, labels.places);
-                exceptions[places.exception.key] = places.exception;
-
+                groups.list.push(label);
                 break;
             case 'S':
-                groups = explodeGroupsFromEvent(event, labels.groups);
-                exceptions[groups.exception.key] = groups.exception;
-
-                tutors = explodeTutorsFromEvent(event, labels.tutors);
-                exceptions[tutors.exception.key] = tutors.exception;
-
+                places.list.push(label);
                 break;
+            default:
+                console.log('Error', label);
         }
 
-        events = events.concat(explodeEvent(event, tutors.list, groups.list, places.list));
-    });
-    return {events: events, exceptions: exceptions};
-};
+        timetable.events.forEach((event)=> {
+            switch (label.type) {
+                case 'N':
+                    groups = explodeGroupsFromEvent(event, labels.groups);
+                    places = explodePlacesFromEvent(event, labels.places);
+                    break;
+                case 'G':
+                    tutors = explodeTutorsFromEvent(event, labels.tutors);
+                    places = explodePlacesFromEvent(event, labels.places);
+                    break;
+                case 'S':
+                    groups = explodeGroupsFromEvent(event, labels.groups);
+                    tutors = explodeTutorsFromEvent(event, labels.tutors);
+                    break;
+            }
+
+            if (tutors.exception) {
+                exceptions[tutors.exception.key] = tutors.exception;
+            }
+            if (groups.exception) {
+                exceptions[groups.exception.key] = groups.exception;
+            }
+            if (places.exception) {
+                exceptions[places.exception.key] = places.exception;
+            }
+
+            if (tutors.exception === false && groups.exception === false && places.exception === false) {
+                events = events.concat(explodeEvent(event, tutors.list, groups.list, places.list));
+            } else {
+                // console.log('Exceptions:', event,tutors.exception, groups.exception, places.exception);
+            }
+        });
+        return {events: events, exceptions: exceptions};
+    }
+    ;
 
 
-module.exports = function (data) {
+module.exports = (data)=> {
 
 
     console.log('start:transformEvents');
     return new Promise((resolve, reject)=> {
 
-        var timetables = require('./timetablesSingletone')();
+        var timetables = data.timetables;
 
 
         var labels = {
@@ -193,6 +212,20 @@ module.exports = function (data) {
             }
         }
 
+
+        var sort = (a, b)=> {
+            if (a.key.length - b.key.length === 0) {
+                return a.key.localeCompare(b.key);
+            } else {
+                return b.key.length - a.key.length;
+            }
+        }
+
+        labels.tutors.sort(sort);
+        labels.groups.sort(sort);
+        labels.places.sort(sort);
+
+
         labels.places.sort((a, b)=> {
             return b.key.length - a.key.length;
         });
@@ -209,13 +242,11 @@ module.exports = function (data) {
                 if (timetableHaveEvents(timetables[timetableType][timetableId])) {
                     var x = explodeEventsFromTimetable(timetables[timetableType][timetableId], data.labels[timetableId], labels);
                     events = events.concat(x.events);
-
                     exceptions = Object.assign(exceptions, x.exceptions);
-                    // console.log('Events', events.length)
                 }
             }
         }
-
+        delete data.timetables;
         console.log(exceptions, events.length);
         console.log('stop:transformEvents');
 

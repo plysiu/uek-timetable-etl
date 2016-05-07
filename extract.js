@@ -8,9 +8,9 @@ var xml2js = require('xml2js'),
  * @param input
  * @return {Promise}
  */
-function parseData(input) {
+var parseData = (input) => {
     return new Promise((resolve, reject)=> {
-        new xml2js.Parser().parseString(input, function (err, stdout, stderr) {
+        new xml2js.Parser().parseString(input, (err, stdout, stderr) => {
             if (err) {
                 reject(err);
             } else {
@@ -19,21 +19,25 @@ function parseData(input) {
         });
     });
 }
+
+var cleanText = (text)=> {
+    return text.trim().replace(/,$/img, '');
+}
 /**
  * @param data
  * @return {string|*|SchemaType}
  */
-function extractValue(data) {
+var extractValue = (data) => {
     if (data) {
         if (data instanceof Array) {
             if (typeof data[0] === 'string') {
-                return data[0];
+                return cleanText(data[0]);
             } else {
-                return data[0]['_'];
+                return cleanText(data[0]['_']);
             }
         } else {
             if (typeof data === 'string') {
-                return data;
+                return cleanText(data)
             } else {
                 console.log('Wystąpił błąd podczas transformacji wartości:', typeof data, data);
             }
@@ -46,12 +50,12 @@ function extractValue(data) {
  * @param data
  * @return {Array}
  */
-function extractList(data) {
+var extractList = (data) => {
     var list = [];
     data['plan-zajec']['zasob'].forEach((element)=> {
         list.push({
             timetableId: element['$']['id'],
-            name: element['$']['nazwa'],
+            name: element['$']['nazwa'].replace(/, $/img, '').trim(),
             type: element['$']['typ'],
             group: data['plan-zajec']['$']['grupa']
         });
@@ -63,14 +67,14 @@ function extractList(data) {
  * @param b
  * @return {number}
  */
-function sortData(a, b) {
+var sortData = (a, b) => {
     return b.name.length - a.name.length;
 }
 /**
  * @param url {sring}
  * @return {Promise}
  */
-function download(url) {
+var download = (url) => {
     return new Promise((resolve, reject)=> {
         rp.get('http://planzajec.uek.krakow.pl/index.php' + url)
             .then((data)=> {
@@ -85,12 +89,12 @@ function download(url) {
  * @param data
  * @return {Array}
  */
-function extractSections(data) {
+var extractSections = (data) => {
     var sections = [];
     data['plan-zajec']['grupowanie'].forEach((item)=> {
         sections.push({
             type: item['$']['typ'],
-            group: item['$']['grupa']
+            group: item['$']['grupa'].replace(/, $/img, '').trim()
         });
     });
     return sections;
@@ -99,7 +103,7 @@ function extractSections(data) {
  * @param taskij
  * @returns {Promise}
  */
-exports.getSectionsList = function () {
+exports.getSectionsList = ()=> {
     return new Promise((resolve, reject)=> {
         download('?xml')
             .then((data)=> {
@@ -117,7 +121,7 @@ exports.getSectionsList = function () {
  * @param section P{type: string, group: string}}
  * @returns {Promise}
  */
-exports.getSection = function (section) {
+exports.getSection = (section)=> {
     return new Promise((resolve, reject)=> {
         rp.get({
             url: 'http://planzajec.uek.krakow.pl/index.php',
@@ -138,7 +142,7 @@ exports.getSection = function (section) {
 /**
  * @return {Promise}
  */
-exports.getLecturersList = function () {
+exports.getLecturersList = ()=> {
     return new Promise((resolve, reject)=> {
         download('?typ=N&xml')
             .then((data)=> {
@@ -155,7 +159,7 @@ exports.getLecturersList = function () {
 /**
  * @returns {Promise}
  */
-exports.getGroupsList = function () {
+exports.getGroupsList = () => {
     return new Promise((resolve, reject)=> {
         download('?typ=G&xml')
             .then((data)=> {
@@ -172,7 +176,7 @@ exports.getGroupsList = function () {
 /**
  * @return {Promise}
  */
-exports.getRoomsList = function () {
+exports.getRoomsList = () => {
     return new Promise((resolve, reject)=> {
         download('?typ=S&xml')
             .then((data)=> {
@@ -189,7 +193,7 @@ exports.getRoomsList = function () {
 /**
  * @return {Promise}
  */
-exports.getFields = function () {
+exports.getFields = () => {
     return new Promise((resolve, reject)=> {
         getSections()
             .then((data)=> {
@@ -209,7 +213,7 @@ exports.getFields = function () {
 /**
  * @return {Promise}
  */
-exports.getBuildings = function () {
+exports.getBuildings = () => {
     return new Promise((resolve, reject)=> {
         getSections()
             .then((data)=> {
@@ -232,7 +236,7 @@ exports.getBuildings = function () {
  * @param name
  * @return {Array}
  */
-function extractTimetableEvents(data, type, name) {
+var extractTimetableEvents = (data, type, name)=> {
     var events = [];
     if (data) {
         data.forEach((event)=> {
@@ -270,11 +274,11 @@ function extractTimetableEvents(data, type, name) {
  * @param data
  * @return {{timetableId: number, type: string, name: string, moodle: number, events: Array}}
  */
-function extractTimetable(data) {
+var extractTimetable = (data)=> {
     return {
         timetableId: data['plan-zajec']['$']['id'],
         type: data['plan-zajec']['$']['typ'],
-        name: data['plan-zajec']['$']['nazwa'],
+        name: extractValue(data['plan-zajec']['$']['nazwa']),
         moodle: data['plan-zajec']['$']['idcel'],
         events: extractTimetableEvents(data['plan-zajec']['zajecia'], data['plan-zajec']['$']['typ'], data['plan-zajec']['$']['nazwa'])
     };
@@ -283,7 +287,7 @@ function extractTimetable(data) {
  * @param timetable {{timetableId: string, type: string, name: string, group: undefined}}
  * @return {Promise}
  */
-exports.getTimetableOf = function (timetable) {
+exports.getTimetableOf = (timetable) => {
     return new Promise((resolve, reject)=> {
         download('?typ=' + timetable.type + '&id=' + timetable.timetableId + '&okres=3&xml')
             .then((data)=> {
@@ -299,7 +303,7 @@ exports.getTimetableOf = function (timetable) {
  *
  * @returns {Promise}
  */
-exports.downloadAll = function () {
+exports.downloadAll = () => {
     return new Promise((resolve, reject) => {
         Promise.all([
             this.getLecturersList(),
@@ -365,7 +369,7 @@ exports.downloadAll = function () {
                 });
 
                 started = Date.now();
-                console.log('Started downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
+                console.log('Downloading', index, 'elements', 'with', downloadQueue.concurrency, 'workers');
                 interval = setInterval(() => {
                     console.log('Remaing elements to download:', downloadQueue.length() + downloadQueue.running());
                 }, 2500);
