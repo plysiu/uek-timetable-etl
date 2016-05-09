@@ -68,22 +68,60 @@ function timetableHaveEvents(timetable) {
     return (timetable &&
     timetable.events &&
     timetable.events.length > 0 &&
-    timetable.events[0].activity !== 'Publikacja tego planu zajęć została zablokowana przez prowadzącego zajęcia.');
+    timetable.events[0].name !== 'Publikacja tego planu zajęć została zablokowana przez prowadzącego zajęcia.');
 }
+
 
 function updateLabelsFromTimetables(labels, timetables) {
     console.log('updating labels from timetables');
     var x = 0;
-    for (var timetable in timetables.N) {
-        if (timetables.N[timetable].moodle) {
-            labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
+
+
+    for (var type in timetables) {
+        for (var timetable in timetables[type]) {
+
+            if (type === 'N' && timetables.N[timetable].moodle) {
+                labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
+            }
+
+
+            if (timetableHaveEvents(timetables[type][timetable])) {
+                timetables[type][timetable].events.forEach((event)=> {
+                        if (event.name !== undefined && event.name.length > 0 && labels[event.name] === undefined) {
+                            labels[event.name] = {};
+                            labels[event.name].key = event.name.trim();
+                            labels[event.name].type = 'A';
+                            labels[event.name].orginal = true;
+                        }
+
+                        if (event.type !== undefined && event.type.length > 0 && labels[event.type] === undefined) {
+                            labels[event.type] = {};
+                            labels[event.type].key = event.type.trim();
+                            labels[event.type].type = 'T';
+                            labels[event.type].orginal = true;
+                        }
+
+                        if (event.note !== undefined && event.note.length > 0 && labels[event.note] === undefined) {
+                            labels[event.note] = {};
+                            labels[event.note].key = event.note.trim();
+                            labels[event.note].type = 'I';
+                            labels[event.note].orginal = true;
+
+                        }
+                    }
+                );
+            }
         }
     }
+
+
     for (var label in labels) {
         if (labels[label].type === 'N') {
             var tutorTimetableId = labels[label].timetableId;
             if (timetableHaveEvents(timetables.N[tutorTimetableId])) {
                 for (var i = 0; i < timetables.N[tutorTimetableId].events.length; i++) {
+
+
                     var k = findTimetableIdFromLabels(labels, timetables.N[tutorTimetableId].events[i].place);
                     var searchedEvent = findEventInTimetable(timetables.N[tutorTimetableId].events[i], timetables.S[k]);
                     if (searchedEvent !== undefined) {

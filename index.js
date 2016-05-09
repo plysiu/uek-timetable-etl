@@ -5,7 +5,6 @@ var models = require('uekplan-models'),
 
 
 var neverEndingStory = ()=> {
-
     return new Promise((resolve, reject)=> {
         require('./extract').downloadAll()
             .then((data)=> {
@@ -43,12 +42,11 @@ var neverEndingStory = ()=> {
                     })
                     .then((data)=> {
                         console.log(data);
-
-                        require('./diff').setDeleteInEventsWhenNotExists();
-                        resolve();
+                        return require('./diff').setDeleteInEventsWhenNotExists();
                     })
                     .then((data)=> {
                         console.log(data);
+                        resolve()
                     })
                     .catch((e)=> {
                         console.log(e.message);              // "Hello"
@@ -63,19 +61,42 @@ var neverEndingStory = ()=> {
     });
 };
 
-models.sequelize.sync().then(()=> {
+models.sequelize.sync()
+    .then(()=> {
+        console.log('START', new Date().toString());
+        neverEndingStory()
+            .then((data)=> {
+                console.log('STOP', new Date().toString());
+            }).catch((e)=> {
+            console.log(e.message);              // "Hello"
+            console.log(e.name);                 // "TypeError"
+            console.log(e.fileName);             // "someFile.js"
+            console.log(e.lineNumber);           // 10
+            console.log(e.columnNumber);         // 0
+            console.log(e.stack);
+            reject(err);
+        });
 
-    neverEndingStory();
+        setInterval(()=> {
+            console.log('START', new Date().toString());
 
-    setInterval(()=> {
-        neverEndingStory();
+            neverEndingStory()
+                .then((data)=> {
+                    console.log('STOP',new  Date().toString());
 
-    }, 1000 * 60 * 60 * 6);
+                }).catch((e)=> {
+                console.log(e.message);              // "Hello"
+                console.log(e.name);                 // "TypeError"
+                console.log(e.fileName);             // "someFile.js"
+                console.log(e.lineNumber);           // 10
+                console.log(e.columnNumber);         // 0
+                console.log(e.stack);
+                reject(err);
+            });
+        }, 1000 * 60 * 60 * 6);
+    });
 
-
-});
-
-
+//
 // models.sequelize.sync().then(()=> {
 //     console.log('Establishing connection to database');
 //     if (fs.existsSync('./data.json')) {
@@ -98,7 +119,6 @@ models.sequelize.sync().then(()=> {
 //             return require('./labels')
 //                 .updateLabels(data.labels)
 //                 .then((labels)=> {
-//
 //                     delete data.list;
 //                     delete data.sections;
 //                     data.labels = labels;
@@ -110,40 +130,40 @@ models.sequelize.sync().then(()=> {
 //     })
 //     .then((data)=> {
 //         return require('./transformEvents')(data);
-//     })
-//     .then((data)=> {
-//         require('./exceptions')(data.exceptions)
-//             .then(()=> {
-//                 return require('./temporary')(data.events)
-//             })
-//             .then(()=> {
-//                 return require('./diff').moveFromTempToEvents();
-//             })
-//             .then((data)=> {
-//                 console.log(data);
-//                 return require('./diff').setUnDeletedInEventsWhenExists();
-//             })
-//             .then((data)=> {
-//                 console.log(data);
+//     }).then((data)=> {
+//     require('./exceptions')(data.exceptions)
+//         .then(()=> {
+//             return require('./temporary')(data.events)
+//         })
+//         .then(()=> {
+//             return require('./diff').moveFromTempToEvents();
+//         })
+//         .then((data)=> {
+//             console.log(data);
+//             return require('./diff').setUnDeletedInEventsWhenExists();
+//         })
+//         .then((data)=> {
+//             console.log(data);
 //
-//                 return require('./diff').setDeleteInEventsWhenNotExists();
-//             })
+//             return require('./diff').setDeleteInEventsWhenNotExists();
+//         })
 //
-//             .then((data)=> {
-//                 console.log(data);
-//                 process.exit();
-//             })
-//             .catch((e)=> {
-//                 console.log(e.message);              // "Hello"
-//                 console.log(e.name);                 // "TypeError"
-//                 console.log(e.fileName);             // "someFile.js"
-//                 console.log(e.lineNumber);           // 10
-//                 console.log(e.columnNumber);         // 0
-//                 console.log(e.stack);
-//                 process.exit();
-//             });
-//     })
+//         .then((data)=> {
+//             console.log(data);
+//             process.exit();
+//         })
+//         .catch((e)=> {
+//             console.log(e.message);              // "Hello"
+//             console.log(e.name);                 // "TypeError"
+//             console.log(e.fileName);             // "someFile.js"
+//             console.log(e.lineNumber);           // 10
+//             console.log(e.columnNumber);         // 0
+//             console.log(e.stack);
+//             process.exit();
+//         });
+// })
 //     .catch((e)=> {
+//         console.log(e);
 //         console.log(e.message);              // "Hello"
 //         console.log(e.name);                 // "TypeError"
 //         console.log(e.fileName);             // "someFile.js"

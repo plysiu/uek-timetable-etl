@@ -6,15 +6,16 @@ var moveFromTempToEvents = ()=> {
 
     return new Promise((resolve, reject)=> {
 
-        models.sequelize.query('INSERT INTO events(`date`,`day`,`from`,`to`,activity,`type`,placeId,tutorId,groupId,note,blocks) ' +
-            'SELECT A.`date`, A.`day`, A.`from`, A.`to`, A.activity, A.`type`, A.placeId, A.tutorId, A.groupId, A.note, A.blocks ' +
+        models.sequelize.query('INSERT INTO events(`date`,`day`,`from`,`to`,activityId,typeId,placeId,tutorId,groupId,noteId,blocks) ' +
+            'SELECT A.`date`, A.`day`, A.`from`, A.`to`, A.activityId, A.`typeId`, A.placeId, A.tutorId, A.groupId, A.noteId, A.blocks ' +
             'FROM `eventTemps` AS A ' +
             'LEFT JOIN events AS B ' +
-            'USING (`date`, `from`, `to`, activity, `type`, tutorId, placeId, groupId) ' +
+            'USING (`date`, `from`, `to`, activityId, typeId, tutorId, placeId, groupId) ' +
             'WHERE B.id IS NULL;').then((data, meta)=> {
             console.log(data, meta);
             resolve();
         }).catch((err)=> {
+            console.log(err);
             reject(err);
         })
     });
@@ -29,7 +30,7 @@ var setDeleteInEventsWhenNotExists = ()=> {
             '(SELECT A.id ' +
             'FROM `events` AS A ' +
             'LEFT JOIN eventTemps AS B ' +
-            'USING (`date`, `from`, `to`, activity, `type`, tutorId, placeId, groupId) ' +
+            'USING (`date`, `from`, `to`, activityId, typeId, tutorId, placeId, groupId) ' +
             'WHERE B.id IS NULL) AS X ' +
             'SET A.deleted=1 ' +
             'WHERE A.id IN(X.id);'
@@ -38,6 +39,8 @@ var setDeleteInEventsWhenNotExists = ()=> {
             resolve();
 
         }).catch((err)=> {
+            console.log(err);
+
             reject(err);
         })
     });
@@ -51,7 +54,7 @@ var setUnDeletedInEventsWhenExists = ()=> {
             '(SELECT A.id ' +
             'FROM `events` AS A ' +
             'LEFT JOIN eventTemps AS B ' +
-            'USING (`date`, `from`, `to`, activity, `type`, tutorId, placeId, groupId) ' +
+            'USING (`date`, `from`, `to`, activityId, typeId, tutorId, placeId, groupId) ' +
             'WHERE B.id IS NOT NULL) AS X ' +
             'SET A.deleted=0 ' +
             'WHERE ' +
@@ -61,6 +64,8 @@ var setUnDeletedInEventsWhenExists = ()=> {
             resolve();
 
         }).catch((err)=> {
+            console.log(err);
+
             reject(err);
         })
     });

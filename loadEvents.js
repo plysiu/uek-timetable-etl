@@ -10,14 +10,14 @@ function updateDatabase(events) {
         events.forEach((event)=> {
             promiseList.push(models.event.findOrCreate({
                 where: {
-                    day: event.day,
+                    date: event.date,
                     from: event.from,
                     to: event.to,
                     tutorId: event.tutorId,
                     placeId: event.placeId,
                     groupId: event.groupId,
-                    type: event.type,
-                    note: event.note
+                    typeId: event.typeId,
+                    noteId: event.noteId
                 },
                 defaults: event
             }));

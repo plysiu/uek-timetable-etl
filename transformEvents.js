@@ -17,7 +17,7 @@ var timetableHaveEvents = (timetable) => {
  */
 var explodeListFromFromEventData = (text, labels, type)=> {
     var list = [];
-    if (text) {
+    if (text && text !== '') {
         labels.forEach((label)=> {
             if (text.includes(label.key) ||
                 text.includes(label.value)) {
@@ -31,6 +31,21 @@ var explodeListFromFromEventData = (text, labels, type)=> {
         return {list: list, exception: false};
     }
 }
+/**
+ * @param event
+ * @param labels
+ * @returns {*}
+ */
+var explodeActivitesFromEvent = (event, labels) => {
+    return explodeListFromFromEventData(event.name, labels, 'A');
+}
+var explodeNotesFromEvent = (event, labels) => {
+    return explodeListFromFromEventData(event.note, labels, 'I');
+}
+var explodeTypesFromEvent = (event, labels) => {
+    return explodeListFromFromEventData(event.type, labels, 'T');
+}
+
 /**
  * @param event
  * @param labels
@@ -63,7 +78,7 @@ var explodePlacesFromEvent = (event, labels)=> {
  * @param places {Array}
  * @returns {Array}
  */
-var explodeEvent = (event, tutors, groups, places)=> {
+var explodeEvent = (event, tutors, groups, places, activites, types, notes)=> {
     var events = [];
     var getDayNumber = (day)=> {
         switch (day) {
@@ -90,32 +105,49 @@ var explodeEvent = (event, tutors, groups, places)=> {
                 break;
         }
     }
-    if (!groups) {
-        groups = [{id: null}];
+    if (groups.length ===0) {
+        groups.push({id: null});
     }
-    if (!tutors) {
-        tutors = [{id: null}];
+    if (tutors.length ===0) {
+        tutors.push({id: null});
     }
-    if (!places) {
-        places = [{id: null}];
+    if (places.length ===0) {
+        places.push({id: null});
     }
-    tutors.forEach((tutor)=> {
-        groups.forEach((group)=> {
-            places.forEach((place)=> {
-                events.push({
-                    date: event.date,
-                    day: getDayNumber(event.day),
-                    from: event.from,
-                    to: event.to,
-                    activity: event.name,
-                    type: event.type,
-                    tutorId: tutor.id,
-                    groupId: group.id,
-                    placeId: place.id,
-                    note: event.note
+    if (activites.length ===0) {
+        activites.push({id: null});
+    }
+    if (types.length ===0) {
+        types .push({id: null});
+    }
+
+    if (notes.length ===0) {
+        notes.push({id: null});
+    }
+
+    activites.forEach((activity)=> {
+        types.forEach((type)=> {
+            notes.forEach((note)=> {
+                tutors.forEach((tutor)=> {
+                    groups.forEach((group)=> {
+                        places.forEach((place)=> {
+                            events.push({
+                                date: event.date,
+                                day: getDayNumber(event.day),
+                                from: event.from,
+                                to: event.to,
+                                activityId: activity.id,
+                                typeId: type.id,
+                                tutorId: tutor.id,
+                                groupId: group.id,
+                                placeId: place.id,
+                                noteId: note.id
+                            });
+                        });
+                    });
                 });
             });
-        })
+        });
     });
     return events;
 }
@@ -131,6 +163,10 @@ var explodeEventsFromTimetable = (timetable, label, labels)=> {
         var tutors = {list: [], exception: false};
         var groups = {list: [], exception: false};
         var places = {list: [], exception: false};
+        var activites = {list: [], exception: false};
+        var notes = {list: [], exception: false};
+        var types = {list: [], exception: false};
+
 
         var exceptions = {};
         switch (label.type) {
@@ -147,6 +183,7 @@ var explodeEventsFromTimetable = (timetable, label, labels)=> {
                 console.log('Error', label);
         }
 
+
         timetable.events.forEach((event)=> {
             switch (label.type) {
                 case 'N':
@@ -162,6 +199,10 @@ var explodeEventsFromTimetable = (timetable, label, labels)=> {
                     tutors = explodeTutorsFromEvent(event, labels.tutors);
                     break;
             }
+            activites = explodeActivitesFromEvent(event, labels.activites);
+            notes = explodeNotesFromEvent(event, labels.notes);
+            types = explodeTypesFromEvent(event, labels.types);
+
 
             if (tutors.exception) {
                 exceptions[tutors.exception.key] = tutors.exception;
@@ -172,11 +213,26 @@ var explodeEventsFromTimetable = (timetable, label, labels)=> {
             if (places.exception) {
                 exceptions[places.exception.key] = places.exception;
             }
+            if (activites.exception) {
+                exceptions[activites.exception.key] = activites.exception;
+            }
+            if (notes.exception) {
+                exceptions[notes.exception.key] = notes.exception;
+            }
+            if (types.exception) {
+                exceptions[types.exception.key] = types.exception;
+            }
 
-            if (tutors.exception === false && groups.exception === false && places.exception === false) {
-                events = events.concat(explodeEvent(event, tutors.list, groups.list, places.list));
+            if (tutors.exception === false
+                && groups.exception === false
+                && places.exception === false
+                && activites.exception === false
+                && types.exception === false
+                && notes.exception === false) {
+                events = events.concat(explodeEvent(event, tutors.list, groups.list, places.list, activites.list, types.list, notes.list));
             } else {
                 // console.log('Exceptions:', event,tutors.exception, groups.exception, places.exception);
+
             }
         });
         return {events: events, exceptions: exceptions};
@@ -196,7 +252,10 @@ module.exports = (data)=> {
         var labels = {
             tutors: [],
             places: [],
-            groups: []
+            groups: [],
+            activites: [],
+            types: [],
+            notes: []
         };
         for (var label in data.labels) {
             switch (data.labels[label].type) {
@@ -208,6 +267,15 @@ module.exports = (data)=> {
                     break;
                 case 'S':
                     labels.places.push(data.labels[label]);
+                    break;
+                case 'A':
+                    labels.activites.push(data.labels[label]);
+                    break;
+                case 'T':
+                    labels.types.push(data.labels[label]);
+                    break;
+                case 'I':
+                    labels.notes.push(data.labels[label]);
                     break;
             }
         }
@@ -225,16 +293,22 @@ module.exports = (data)=> {
         labels.groups.sort(sort);
         labels.places.sort(sort);
 
+        labels.activites.sort(sort);
 
-        labels.places.sort((a, b)=> {
-            return b.key.length - a.key.length;
-        });
-        labels.tutors.sort((a, b)=> {
-            return b.key.length - a.key.length;
-        });
-        labels.groups.sort((a, b)=> {
-            return b.key.length - a.key.length;
-        });
+        labels.notes.sort(sort);
+
+        labels.types.sort(sort);
+
+
+        // labels.places.sort((a, b)=> {
+        //     return b.key.length - a.key.length;
+        // });
+        // labels.tutors.sort((a, b)=> {
+        //     return b.key.length - a.key.length;
+        // });
+        // labels.groups.sort((a, b)=> {
+        //     return b.key.length - a.key.length;
+        // });
         var exceptions = {};
         var events = [];
         for (var timetableType in timetables) {

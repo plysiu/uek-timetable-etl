@@ -264,7 +264,7 @@ var extractTimetableEvents = (data, type, name)=> {
                 tutor: extractValue(event['nauczyciel']),
                 group: extractValue(event['grupa']),
                 place: extractValue(event['sala']),
-                note: extractValue(event['uwaga'])
+                note: extractValue(event['uwagi'])
             });
         });
     }
