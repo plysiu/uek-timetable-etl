@@ -137,7 +137,7 @@ var resolveTutorsName = ()=> {
                 list.push(models.label.update({
                     surname: tutor.dataValues.surname,
                     forename: tutor.dataValues.forename,
-                    prefix: tutor.dataValues.prefix
+                    prefix: tutor.dataValues.prefix.trim()
                 }, {
                     where: {
                         id: tutor.dataValues.id
