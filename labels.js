@@ -96,7 +96,70 @@ var updateLabels = (labels)=> {
     });
 }
 
+var getPrefix = (val)=> {
+    return (val.split(',').length > 1) ? val.split(',')[1] : null;
+}
+
+var resolveTutorsName = ()=> {
+    return new Promise((resolve, reject)=> {
+        models.label.findAll({
+            where: {
+                type: 'N',
+                value: {$ne: null}
+            }
+        }).then((tutors)=> {
+            tutors.forEach((tutor)=> {
+                tutor.dataValues.prefix = getPrefix(tutor.dataValues.key);
+
+
+                var prefix = ( tutor.dataValues.prefix) ? tutor.dataValues.prefix.length : 0;
+
+
+                var sKey = tutor.dataValues.key.slice(0, ( ( prefix === 0) ? tutor.dataValues.key.length : tutor.dataValues.key.length - prefix - 1)).trim();
+                var sValue = tutor.dataValues.value.slice(prefix, tutor.dataValues.value.length).trim();
+
+
+                var sKeyFirstSpace = sKey.indexOf(' ');
+
+                var i = 0;
+                do {
+                    if (sValue.slice(sValue.length - ( sKeyFirstSpace + i)) === sKey.slice(0, sKeyFirstSpace + i)) {
+                        tutor.dataValues.surname = sValue.slice(sKey.length - sKeyFirstSpace - i).trim();
+                        tutor.dataValues.forename = sValue.slice(0, sValue.length - sKeyFirstSpace - i).trim();
+                        break;
+                    }
+                    i++;
+                } while (i < sKey.length);
+            })
+            tutors.forEach((tutor)=> {
+
+                var list = [];
+                list.push(models.label.update({
+                    surname: tutor.dataValues.surname,
+                    forename: tutor.dataValues.forename,
+                    prefix: tutor.dataValues.prefix
+                }, {
+                    where: {
+                        id: tutor.dataValues.id
+                    }
+                }));
+                Promise.all(list)
+                    .then((x)=> {
+                        resolve();
+                    })
+                    .catch((err)=> {
+                        reject(err);
+                    });
+            });
+        })
+            .catch((err)=> {
+                reject(err);
+            });
+    });
+};
+
 module.exports = {
+    resolveTutorsName: resolveTutorsName,
     updateLabels: updateLabels,
     loadLabels: loadLabels
 }

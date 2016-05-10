@@ -31,6 +31,9 @@ var neverEndingStory = ()=> {
             .then((data)=> {
                 require('./exceptions')(data.exceptions)
                     .then(()=> {
+                        return require('./labels').resolveTutorsName();
+                    })
+                    .then(()=> {
                         return require('./temporary')(data.events)
                     })
                     .then(()=> {
@@ -67,24 +70,8 @@ models.sequelize.sync()
         neverEndingStory()
             .then((data)=> {
                 console.log('STOP', new Date().toString());
-            }).catch((e)=> {
-            console.log(e.message);              // "Hello"
-            console.log(e.name);                 // "TypeError"
-            console.log(e.fileName);             // "someFile.js"
-            console.log(e.lineNumber);           // 10
-            console.log(e.columnNumber);         // 0
-            console.log(e.stack);
-            reject(err);
-        });
-
-        setInterval(()=> {
-            console.log('START', new Date().toString());
-
-            neverEndingStory()
-                .then((data)=> {
-                    console.log('STOP',new  Date().toString());
-
-                }).catch((e)=> {
+            })
+            .catch((e)=> {
                 console.log(e.message);              // "Hello"
                 console.log(e.name);                 // "TypeError"
                 console.log(e.fileName);             // "someFile.js"
@@ -93,6 +80,23 @@ models.sequelize.sync()
                 console.log(e.stack);
                 reject(err);
             });
+
+        setInterval(()=> {
+            console.log('START', new Date().toString());
+
+            neverEndingStory()
+                .then((data)=> {
+                    console.log('STOP', new Date().toString());
+                })
+                .catch((e)=> {
+                    console.log(e.message);              // "Hello"
+                    console.log(e.name);                 // "TypeError"
+                    console.log(e.fileName);             // "someFile.js"
+                    console.log(e.lineNumber);           // 10
+                    console.log(e.columnNumber);         // 0
+                    console.log(e.stack);
+                    reject(err);
+                });
         }, 1000 * 60 * 60 * 6);
     });
 
