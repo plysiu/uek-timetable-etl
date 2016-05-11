@@ -97,7 +97,7 @@ var updateLabels = (labels)=> {
 }
 
 var getPrefix = (val)=> {
-    return (val.split(',').length > 1) ? val.split(',')[1].trim() : null;
+    return (val.split(', ').length > 1) ? val.split(',')[1].trim() : null;
 }
 
 var resolveTutorsName = ()=> {
@@ -115,7 +115,7 @@ var resolveTutorsName = ()=> {
                 var prefix = ( tutor.dataValues.prefix) ? tutor.dataValues.prefix.length : 0;
 
 
-                var sKey = tutor.dataValues.key.slice(0, ( ( prefix === 0) ? tutor.dataValues.key.length : tutor.dataValues.key.length - prefix - 1)).trim();
+                var sKey = tutor.dataValues.key.slice(0, ( ( prefix === 0) ? tutor.dataValues.key.length : tutor.dataValues.key.length - prefix - 2)).trim();
                 var sValue = tutor.dataValues.value.slice(prefix, tutor.dataValues.value.length).trim();
 
 
