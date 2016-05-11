@@ -97,7 +97,7 @@ var updateLabels = (labels)=> {
 }
 
 var getPrefix = (val)=> {
-    return (val.split(',').length > 1) ? val.split(',')[1] : null;
+    return (val.split(',').length > 1) ? val.split(',')[1].trim() : null;
 }
 
 var resolveTutorsName = ()=> {
@@ -123,6 +123,11 @@ var resolveTutorsName = ()=> {
 
                 var i = 0;
                 do {
+                    /**
+                     * Szukanie podobieństw
+                     *          ala ma kot -->>
+                     *            <<-- kota ma ale
+                     */
                     if (sValue.slice(sValue.length - ( sKeyFirstSpace + i)) === sKey.slice(0, sKeyFirstSpace + i)) {
                         tutor.dataValues.surname = sValue.slice(sKey.length - sKeyFirstSpace - i).trim();
                         tutor.dataValues.forename = sValue.slice(0, sValue.length - sKeyFirstSpace - i).trim();
@@ -137,7 +142,7 @@ var resolveTutorsName = ()=> {
                 list.push(models.label.update({
                     surname: tutor.dataValues.surname,
                     forename: tutor.dataValues.forename,
-                    prefix: tutor.dataValues.prefix.trim()
+                    prefix: tutor.dataValues.prefix
                 }, {
                     where: {
                         id: tutor.dataValues.id
