@@ -128,7 +128,6 @@ var explodeEvent = (event, tutors, groups, places, activites, types, notes) => {
   if (types.length === 0) {
     types.push({id: 0});
   }
-  a
   if (notes.length === 0) {
     notes.push({id: 0});
   }

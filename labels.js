@@ -167,7 +167,7 @@ var getPrefix = (val)=> {
   return (val.split(', ').length > 1) ? val.split(',')[1].trim() : null;
 }
 
-var resolveTutorsName = ()=> {
+var resolveTutorsName = (data)=> {
   return new Promise((resolve, reject)=> {
     models.label
       .findAll({
@@ -212,30 +212,19 @@ var resolveTutorsName = ()=> {
                 surename = sValue.slice(sKey.length - sKeyFirstSpace - i).trim();
                 forename = sValue.slice(0, sValue.length - sKeyFirstSpace - i).trim();
                 list.push(models.labeltutor.findOrCreate({
-                  where: {labelId: label.id},
+                  where: {labelId: label.id, prefix: prefix, forename: forename, surename: surename},
                   defaults: {prefix: prefix, forename: forename, surename: surename}
                 }));
                 break;
               }
               i++;
             } while (i < sKey.length);
-
-
           }
         });
 
         Promise.all(list)
           .then((d)=> {
-            d.forEach((data) => {
-
-              if (data[1] === false) {
-                console.log(data[0].dataValues)
-              }
-            })
-            console.log(data);
-
-
-            resolve();
+            resolve(data);
           })
           .catch((err)=> {
             reject(err);

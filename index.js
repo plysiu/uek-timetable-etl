@@ -15,18 +15,18 @@ var neverEndingStory = () => {
 
       return Promise.resolve(data);
     })
-    .then((data) => {
-      return require('./extract').downloadAll(data);
-    })
-    .then((data) => {
-      return require('./transformLabels')(data);
-    })
-    .then((data) => {
-      return require('./labels').updateLabels(data);
-    })
-    .then((data) => {
-      return require('./transformEvents')(data);
-    })
+    // .then((data) => {
+    //   return require('./extract').downloadAll(data);
+    // })
+    // .then((data) => {
+    //   return require('./transformLabels')(data);
+    // })
+    // .then((data) => {
+    //   return require('./labels').updateLabels(data);
+    // })
+    // .then((data) => {
+    //   return require('./transformEvents')(data);
+    // })
     .then((data)=> {
       if (fs.existsSync('./data.json')) {
         console.log('Reading data from cache');
@@ -42,23 +42,23 @@ var neverEndingStory = () => {
       data.logEntry = x;
       return require('./exceptions')(data);
     })
-    /**
-     * Jeśli dajel nie będze działało zrób cash bo sie zajebiesz :) pozdrawiam
-     */
-    .then((data) => {
-      return require('./temporary')(data);
-    })
+    // /**
+    //  * Jeśli dajel nie będze działało zrób cash bo sie zajebiesz :) pozdrawiam
+    //  */
+    // .then((data) => {
+    //   return require('./temporary')(data);
+    // })
     .then((data) => {
       return require('./diff').moveFromTempToEvents(data);
     })
-    .then(() => {
-      return require('./diff').setUnDeletedInEventsWhenExists();
+    .then((data) => {
+      return require('./diff').setUnDeletedInEventsWhenExists(data);
     })
-    .then(() => {
-      return require('./diff').setDeleteInEventsWhenNotExists();
+    .then((data) => {
+      return require('./diff').setDeleteInEventsWhenNotExists(data);
     })
-    .then(() => {
-      return require('./labels').resolveTutorsName();
+    .then((data) => {
+      return require('./labels').resolveTutorsName(data);
     })
     .then(() => {
       console.log('Done');
