@@ -1,26 +1,34 @@
 'use strict';
 var models = require('uekplan-models');
 
-var moveFromTempToEvents = () => {
+exports.moveFromTempToEvents = (data) => {
   console.log('moveFromTempToEvents')
 
   return new Promise((resolve, reject) => {
     var query = "INSERT INTO events(`date`,`day`,`from`,`to`,activityId,typeId,placeId,tutorId,groupId,noteId,blocks) SELECT A.`date`, A.`day`, A.`from`, A.`to`, A.activityId, A.`typeId`, A.placeId, A.tutorId, A.groupId, A.noteId, A.blocks FROM `eventtemps` AS A LEFT JOIN events AS B USING (`date`, `from`, `to`, activityId, typeId, tutorId, placeId, groupId) WHERE B.id IS NULL;";
     models.sequelize
       .query(query)
-      .then((data, meta) => {
-        console.log('x', data, meta);
-        resolve();
+      .then((result) => {
+        data.logEntry.eventsInserted = result[0].affectedRows;
+        data.logEntry
+          .save()
+          .then(()=> {
+            resolve(data);
+          })
+          .catch((err) => {
+            console.log(err);
+            reject(err);
+          });
       })
       .catch((err) => {
         console.log(err);
         reject(err);
       });
   });
-}
+};
 // http://stackoverflow.com/questions/11103208/compare-two-tables-mysql
 //
-var setDeleteInEventsWhenNotExists = () => {
+exports.setDeleteInEventsWhenNotExists = (data) => {
   console.log('setDeleteInEventsWhenNotExists')
   return new Promise((resolve, reject) => {
 
@@ -28,17 +36,25 @@ var setDeleteInEventsWhenNotExists = () => {
       '(SELECT A.id ' +
       'FROM `events` AS A ' +
       'LEFT JOIN eventtemps AS B ' +
-      'USING (`date`, `from`, `to`, activityId, typeId, tutorId, placeId, groupId) ' +
+      'USING (`date`, `from`, `to`, activityId, typeId, tutorId, placeId, groupId, noteId) ' +
       'WHERE B.id IS NULL) AS X ' +
       'SET A.deleted=1 ' +
       'WHERE A.id IN(X.id);';
 
     models.sequelize
       .query(query)
-      .then((data, meta) => {
-        console.log(data, meta);
-        resolve();
-
+      .then((result) => {
+        console.log(result);
+        data.logEntry.eventsDeleted = result[0].affectedRows;
+        data.logEntry
+          .save()
+          .then(()=> {
+            resolve(data);
+          })
+          .catch((err) => {
+            console.log(err);
+            reject(err);
+          });
       })
       .catch((err) => {
         console.log(err);
@@ -47,7 +63,7 @@ var setDeleteInEventsWhenNotExists = () => {
   });
 };
 
-var setUnDeletedInEventsWhenExists = () => {
+exports.setUnDeletedInEventsWhenExists = (data) => {
   console.log('setUnDeletedInEventsWhenExists')
   return new Promise((resolve, reject) => {
 
@@ -61,19 +77,23 @@ var setUnDeletedInEventsWhenExists = () => {
       'WHERE ' +
       'A.id IN(X.id);';
     models.sequelize.query(query)
-      .then((data, meta) => {
-        console.log(data, meta);
-        resolve();
+      .then((result) => {
+        console.log(result);
+        data.logEntry.eventsUpdated = result[0].affectedRows;
+        data.logEntry
+          .save()
+          .then(()=> {
+            resolve(data);
+          })
+          .catch((err) => {
+            console.log(err);
+            reject(err);
+          });
       })
       .catch((err) => {
         console.log(err);
         reject(err);
       });
   });
-};
-module.exports = {
-  moveFromTempToEvents: moveFromTempToEvents,
-  setDeleteInEventsWhenNotExists: setDeleteInEventsWhenNotExists,
-  setUnDeletedInEventsWhenExists: setUnDeletedInEventsWhenExists
 };
 
