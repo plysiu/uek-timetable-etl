@@ -1,0 +1,8 @@
+'use strict';
+var config = {
+  CONCURRENT_DB_CONNECTIONS: process.env.UEKPLAN_CONCURRENT_DB_CONNECTIONS || 20,
+  CONCURRENT_HTTP_CONECTIONS: process.env.UEKPLAN_CONCURRENT_HTTP_CONECTIONS || 100,
+  SECONDS_WAIT: process.env.UEKPLAN_SECONDS_WAIT || 120,
+  INTERVAL: process.env.UEKPLAN_INTERVAL || 6
+};
+module.exports = config;

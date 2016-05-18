@@ -1,5 +1,6 @@
 "use strict";
 var UEK = require('./extract');
+var CONFIG = require('config');
 /**
  * @param labels
  * @returns {Promise}
@@ -63,7 +64,7 @@ module.exports = function (labels) {
 
                             });
                     }
-                }, 200);
+                }, CONFIG.CONCURRENT_HTTP_CONECTIONS);
                 list.forEach((elements, key) => {
                     index += elements.length;
                     elements.forEach((task) => {
@@ -79,6 +80,7 @@ module.exports = function (labels) {
                     downloadQueue.kill();
                     clearInterval(interval);
                     console.log('All elements has been downloaded. Elapsed time in secconds:', (Date.now() - started) / 1000);
+                    
                     resolve({
                         labels: labels,
                         sections: sections,

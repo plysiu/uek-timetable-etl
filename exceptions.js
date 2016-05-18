@@ -1,28 +1,39 @@
 'use strict';
-var models = require('uekplan-models');
+var Exception = require('uekplan-models').exception;
 /**
  * @param exceptions
  * @returns {Promise}
  */
-module.exports = (exceptions)=> {
-    return new Promise((resolve, reject) => {
-        console.log('inserting exceptions to database');
-        var promiseList = [];
-        for (var exception in exceptions) {
-            promiseList.push(models.exception.findOrCreate({
-                where: {
-                    key: exceptions[exception].key,
-                    type: exceptions[exception].type
-                },
-                defaults: exceptions[exception]
-            }));
-        }
-        Promise.all(promiseList)
-            .then(()=> {
-                resolve();
-            }).catch((err)=> {
-            reject(err);
-        });
-    });
-}
+module.exports = (data, logEntry) => {
+  return new Promise((resolve, reject) => {
+    console.log('inserting exceptions to database');
+    var promiseList = [];
+    for (var exception in data.exceptions) {
+      promiseList.push(Exception.findOrCreate({
+        where: {
+          key: data.exceptions[exception].key,
+          type: data.exceptions[exception].type
+        },
+        defaults: data.exceptions[exception]
+      }));
+    }
+    Promise.all(promiseList)
+      .then(() => {
+        Exception.count()
+          .then((c) => {
+            data.logEntry.exceptionsExtracted = c;
+            data.logEntry
+              .save().then(() => {
+              delete data.exceptions;
+              resolve(data);
+            });
+          });
+      })
+      .catch((err) => {
+        reject(err);
+      });
+
+  });
+};
+
 
