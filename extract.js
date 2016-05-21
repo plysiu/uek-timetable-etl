@@ -5,8 +5,9 @@ var async = require('async');
 var CONFIG = require('./config');
 var LABEL_TYPES = require('uekplan-models/labelTypes');
 /**
- * @param {string} input Html page
- * @return {Promise} Parsed html
+ *
+ * @param input
+ * @returns {Promise}
  */
 var parseData = (input) => {
   return new Promise((resolve, reject) => {
@@ -28,8 +29,9 @@ var cleanText = (text) => {
   return text.trim().replace(/,$/img, '');
 };
 /**
+ * 
  * @param data
- * @return {string|*|SchemaType}
+ * @returns {string}
  */
 var extractValue = (data) => {
   if (data) {
@@ -41,7 +43,7 @@ var extractValue = (data) => {
       }
     } else {
       if (typeof data === 'string') {
-        return cleanText(data)
+        return cleanText(data);
       } else {
         console.log('Wystąpił błąd podczas transformacji wartości:', typeof data, data);
       }
@@ -51,8 +53,9 @@ var extractValue = (data) => {
   }
 };
 /**
- * @TODO need rafactoring
+ * Returns label type
  * @param type
+ * @returns {string}
  */
 var getLabelType = (type) => {
   for (var label_type in LABEL_TYPES) {
@@ -60,7 +63,7 @@ var getLabelType = (type) => {
       return LABEL_TYPES[label_type];
     }
   }
-  LABEL_TYPES.UNKNOWN;
+  return LABEL_TYPES.UNKNOWN;
 };
 /**
  * @param data

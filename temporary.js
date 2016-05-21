@@ -1,14 +1,15 @@
-var EventTemp = require('uekplan-models').eventtemp,
-  async = require('async');
+var EventTemp = require('uekplan-models').event_temp;
+var async = require('async');
+var CONFIG = require('./config');
 
 module.exports = (data, logEntry) => {
   return findOrCreate(data, logEntry);
 };
+
 /**
  * @returns {Promise}
  */
-var CONFIG = require('./config');
-var clean = ()=> {
+var clean = () => {
   return EventTemp.truncate();
   // return Promise.resolve();
 };
@@ -16,13 +17,12 @@ var clean = ()=> {
  * @param events
  * @returns {Promise}
  */
-var findOrCreate = (data)=> {
-  return new Promise((resolve, reject)=> {
+var findOrCreate = (data) => {
+  console.log('INFO: Inserting events to temporary table');
+  return new Promise((resolve, reject) => {
     clean()
-      .then(()=> {
-        console.log('inserting events to temporary table');
+      .then(() => {
         var q = async.queue((event, callback) => {
-          console.log(event);
           EventTemp.findOrCreate({
             where: {
               date: event.date,
@@ -37,39 +37,40 @@ var findOrCreate = (data)=> {
             },
             defaults: event
           })
-            .then(()=> {
+            .spread(() => {
               callback();
             })
-            .catch((err)=> {
+            .catch((err) => {
               callback();
-              console.log(err);
+              console.log('ERROR: Inserting events to temporary table');
               reject(err);
             });
         }, CONFIG.CONCURRENT_DB_CONNECTIONS);
-        data.events.forEach((event)=> {
+        data.events.forEach((event) => {
           q.push(event);
         });
-        q.drain = ()=> {
+        q.drain = () => {
           EventTemp
             .count()
-            .then((c)=> {
-            data.logEntry.eventtempsInserted = c;
-            data.logEntry
-              .save()
-              .then(()=> {
-                resolve();
-              })
-              .catch((err)=> {
-                console.log(err);
-                reject(err);
-              });
-          });
+            .then((count) => {
+              data.logEntry.eventtempsInserted = count;
+              data.logEntry
+                .save()
+                .then(() => {
+                  console.log('INFO: Inserted events to temporary table');
+                  resolve(data);
+                })
+                .catch((err) => {
+                  console.log('ERROR: Inserting events to temporary table');
+                  reject(err);
+                });
+            });
         };
-
       })
-      .catch((err)=> {
-        console.log(err);
+      .catch((err) => {
+        console.log('INFO: Inserting events to temporary table');
         reject(err);
       });
   });
 };
+

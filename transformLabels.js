@@ -43,7 +43,7 @@ function updateLabelsFromList(labels, list) {
   });
   console.log('INFO: Succesfuly updated labels from task list');
   return labels;
-}
+};
 
 function findTimetableIdFromLabels(labels, key) {
   for (var label in labels) {
@@ -63,7 +63,7 @@ function findEventInTimetable(queryEvent, timetable) {
     }
   }
   return;
-}
+};
 
 
 function timetableHaveEvents(timetable) {
@@ -71,71 +71,64 @@ function timetableHaveEvents(timetable) {
   timetable.events &&
   timetable.events.length > 0 &&
   timetable.events[0].name !== 'Publikacja tego planu zajęć została zablokowana przez prowadzącego zajęcia.');
-}
-
+};
 
 function updateLabelsFromTimetables(labels, timetables) {
   console.log('INFO: Updating labels from timetables');
   var x = 0;
-    for (var type in timetables) {
-      for (var timetable in timetables[type]) {
+  for (var type in timetables) {
+    for (var timetable in timetables[type]) {
 
-        if (type === LABEL_TYPES.TUTOR && timetables.N[timetable].moodle) {
-          if (!labels[timetable].labeltutor) {
-            labels[timetable].labeltutor = {};
-          }
-          labels[timetable].labeltutor.moodleId = Math.abs(timetables.N[timetable].moodle);
-        }
+      if (type === LABEL_TYPES.TUTOR && timetables.N[timetable].moodle) {
+        labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
+      }
 
-
-        if (timetableHaveEvents(timetables[type][timetable])) {
-          timetables[type][timetable].events.forEach((event)=> {
-              if (event.name !== undefined && event.name.length > 0 && labels[event.name] === undefined) {
-                labels[event.name] = {};
-                labels[event.name].key = event.name.trim();
-                labels[event.name].type = LABEL_TYPES.ACTIVITY;
-                labels[event.name].orginal = true;
-              }
-
-              if (event.type !== undefined && event.type.length > 0 && labels[event.type] === undefined) {
-                labels[event.type] = {};
-                labels[event.type].key = event.type.trim();
-                labels[event.type].type = LABEL_TYPES.TYPE;
-                labels[event.type].orginal = true;
-              }
-
-              if (event.note !== undefined && event.note.length > 0 && labels[event.note] === undefined) {
-                labels[event.note] = {};
-                labels[event.note].key = event.note.trim();
-                labels[event.note].type = LABEL_TYPES.NOTE;
-                labels[event.note].orginal = true;
-
-              }
+      if (timetableHaveEvents(timetables[type][timetable])) {
+        timetables[type][timetable].events
+          .forEach((event)=> {
+            if (event.name !== undefined && event.name.length > 0 && labels[event.name] === undefined) {
+              labels[event.name] = {};
+              labels[event.name].key = event.name.trim();
+              labels[event.name].type = LABEL_TYPES.ACTIVITY;
+              labels[event.name].orginal = true;
             }
-          );
-        }
+
+            if (event.type !== undefined && event.type.length > 0 && labels[event.type] === undefined) {
+              labels[event.type] = {};
+              labels[event.type].key = event.type.trim();
+              labels[event.type].type = LABEL_TYPES.TYPE;
+              labels[event.type].orginal = true;
+            }
+
+            if (event.note !== undefined && event.note.length > 0 && labels[event.note] === undefined) {
+              labels[event.note] = {};
+              labels[event.note].key = event.note.trim();
+              labels[event.note].type = LABEL_TYPES.NOTE;
+              labels[event.note].orginal = true;
+            }
+          });
       }
     }
-    for (var label in labels) {
-      if (labels[label].type === LABEL_TYPES.TUTOR) {
-        var tutorTimetableId = labels[label].timetableId;
-        if (timetableHaveEvents(timetables.N[tutorTimetableId])) {
-          for (var i = 0; i < timetables.N[tutorTimetableId].events.length; i++) {
+  }
+  for (var label in labels) {
+    if (labels[label].type === LABEL_TYPES.TUTOR) {
+      var tutorTimetableId = labels[label].timetableId;
+      if (timetableHaveEvents(timetables.N[tutorTimetableId])) {
+        for (var i = 0; i < timetables.N[tutorTimetableId].events.length; i++) {
 
-
-            var k = findTimetableIdFromLabels(labels, timetables.N[tutorTimetableId].events[i].place);
-            var searchedEvent = findEventInTimetable(timetables.N[tutorTimetableId].events[i], timetables.S[k]);
-            if (searchedEvent !== undefined) {
-              labels[label].value = searchedEvent.tutor.trim();
-              break;
-            }
+          var k = findTimetableIdFromLabels(labels, timetables.N[tutorTimetableId].events[i].place);
+          var searchedEvent = findEventInTimetable(timetables.N[tutorTimetableId].events[i], timetables.S[k]);
+          if (searchedEvent !== undefined) {
+            labels[label].value = searchedEvent.tutor.trim();
+            break;
           }
         }
       }
     }
+  }
   console.log('INFO: Succesfuly updated labels from timetables');
   return labels;
-}
+};
 /**
  *
  * @param labels
@@ -156,7 +149,7 @@ function addLabelsFromSections(labels, sections) {
   });
   console.log('INFO: Succesfuly updated labels from sections');
   return labels;
-}
+};
 /**
  *
  * @param data
@@ -168,10 +161,9 @@ module.exports = (data)=> {
     require('./labels')
       .loadLabels()
       .then((labels)=> {
-        labels = updateLabelsFromList(labels, data.list);
-        labels = updateLabelsFromTimetables(labels, data.timetables);
-        labels = addLabelsFromSections(labels, data.sections);
-        data.labels = labels;
+        data.labels = updateLabelsFromList(labels, data.list);
+        data.labels = updateLabelsFromTimetables(data.labels, data.timetables);
+        data.labels = addLabelsFromSections(data.labels, data.sections);
         delete data.sections;
         delete data.list;
         console.log('INFO: Successfuly transformed labels');

@@ -4,9 +4,9 @@ var Exception = require('uekplan-models').exception;
  * @param exceptions
  * @returns {Promise}
  */
-module.exports = (data, logEntry) => {
+module.exports = (data) => {
   return new Promise((resolve, reject) => {
-    console.log('inserting exceptions to database');
+    console.log('INFO: Inserting exceptions to database');
     var promiseList = [];
     for (var exception in data.exceptions) {
       promiseList.push(Exception.findOrCreate({
@@ -20,20 +20,24 @@ module.exports = (data, logEntry) => {
     Promise.all(promiseList)
       .then(() => {
         Exception.count()
-          .then((c) => {
-            data.logEntry.exceptionsExtracted = c;
+          .then((count) => {
+            data.logEntry.exceptionsExtracted = count;
             data.logEntry
-              .save().then(() => {
-              delete data.exceptions;
-              resolve(data);
-            });
+              .save()
+              .then(() => {
+                console.log('INFO: Inserted exceptions to database');
+                delete data.exceptions;
+                resolve(data);
+              })
+              .catch((err)=> {
+                console.log('ERROR: Inserting exceptions to database');
+                reject(err);
+              });
           });
       })
       .catch((err) => {
+        console.log('ERROR: Inserting exceptions to database');
         reject(err);
       });
-
   });
 };
-
-
