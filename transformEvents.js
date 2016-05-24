@@ -300,9 +300,10 @@ module.exports = (data) => {
       }
     };
 
-    labels.forEach((field)=> {
-      field.sort(sort);
-    })
+
+    for(var field in labels){
+      labels[field].sort(sort);
+    }
 
     for (var timetableType in data.timetables) {
       for (var timetableId in data.timetables[timetableType]) {
