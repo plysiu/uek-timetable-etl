@@ -299,12 +299,10 @@ module.exports = (data) => {
         return b.key.length - a.key.length;
       }
     };
-    labels.tutors.sort(sort);
-    labels.groups.sort(sort);
-    labels.places.sort(sort);
-    labels.activites.sort(sort);
-    labels.notes.sort(sort);
-    labels.types.sort(sort);
+
+    labels.forEach((field)=> {
+      field.sort(sort);
+    })
 
     for (var timetableType in data.timetables) {
       for (var timetableId in data.timetables[timetableType]) {
