@@ -14,12 +14,8 @@ var neverEndingStory = () => {
       x = data.logEntry = log;
       return Promise.resolve(data);
     })
-
     .then((data) => {
       return require('./extract').downloadAll(data);
-    })
-    .then((data) => {
-      return require('./transformLabels')(data);
     })
     // .then((data)=> {
     //   if (fs.existsSync('./data.json')) {
@@ -32,20 +28,18 @@ var neverEndingStory = () => {
     //     return Promise.resolve(data);
     //   }
     // })
-      .then((data) => {
-        return require('./labels').updateLabels(data);
-      })
+    .then((data) => {
+      return require('./transformLabels')(data);
+    })
+    .then((data) => {
+      return require('./labels').updateLabels(data);
+    })
     .then((data) => {
       return require('./transformEvents')(data);
     })
-
-
     .then((data) => {
       return require('./exceptions')(data);
     })
-    /**
-     * Jeśli dajel nie będze działało zrób cash bo sie zajebiesz :) pozdrawiam
-     */
     .then((data) => {
       return require('./temporary')(data);
     })

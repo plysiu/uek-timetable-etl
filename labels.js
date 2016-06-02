@@ -5,6 +5,42 @@ var async = require('async');
 var CONFIG = require('./config');
 /**
  *
+ * @param {{id:number, timetable:number|null, key:string, value:string|null, labelId:number|null, parentText:number|null, orginal:boolean}} label
+ */
+var resolveTutorName = (label)=> {
+  if (label.value) {
+    var data = {
+      prefix: null,
+      surename: null,
+      forename: null
+    };
+    data.prefix = getPrefix(label.key);
+    var prefixLength = data.prefix ? data.prefix.length : 0;
+    var sKey = label.key.slice(0, ( ( prefixLength === 0) ? label.key.length : label.key.length - prefixLength - 2)).trim();
+    var sValue = label.value.slice(prefixLength, label.value.length).trim();
+    var sKeyFirstSpace = sKey.indexOf(' ');
+    var i = 0;
+    do {
+      /**
+       * Szukanie podobieństw
+       *          ala ma kot -->>
+       *            <<-- kota ma ale
+       */
+      if (sValue.slice(sValue.length - ( sKeyFirstSpace + i)) === sKey.slice(0, sKeyFirstSpace + i)) {
+        data.surename = sValue.slice(sKey.length - sKeyFirstSpace - i).trim();
+        data.forename = sValue.slice(0, sValue.length - sKeyFirstSpace - i).trim();
+        return data;
+      }
+      i++;
+    } while (i < sKey.length);
+    return false;
+  } else {
+    return false;
+  }
+};
+
+/**
+ *
  * @returns {Promise}
  */
 var updateParentsId = () => {
@@ -78,137 +114,143 @@ exports.loadLabels = () => {
       });
   });
 };
+//
+// var updateLabel = (label) => {
+//   return new Promise((resolve, reject) => {
+//     if (!label.id) {
+//       label.timetableId = label.timetableId !== 0 ? label.timetableId : 0;
+//       models.label.findOrCreate({
+//         where: {
+//           timetableId: label.timetableId,
+//           key: label.key
+//         },
+//         defaults: {
+//           timetable: label.timetableId,
+//           key: label.key,
+//           value: label.value,
+//           parentText: label.parentText,
+//           type: label.type,
+//           orginal: label.orginal
+//         }
+//       })
+//         .spread((data, created) => {
+//           if (data.type === LABEL_TYPES.TUTOR) {
+//
+//             models.labeltutor.findOrCreate({
+//               where: {labelId: data.id},
+//               defaults: {moodleId: label.moodleId}
+//             })
+//               .spread((labeltutor, created)=> {
+//
+//                 if (labeltutor.moodleId !== label.moodleId) {
+//                   labeltutor.moodleId = label.moodleId;
+//                   resolve(labeltutor.save());
+//                 } else {
+//                   resolve();
+//                 }
+//               })
+//               .catch((err)=> {
+//                 reject(err);
+//               });
+//           } else {
+//             resolve();
+//           }
+//
+//         })
+//         .catch((err) => {
+//           console.log('ERR', label, err);
+//           reject(err);
+//         });
+//     }
+//   });
+// };
 
-var updateLabel = (label) => {
+exports.updateLabels = (data) => {
   return new Promise((resolve, reject) => {
-    if (!label.id) {
-      label.timetableId = label.timetableId !== 0 ? label.timetableId : 0;
+    console.log('INFO: Updating labels');
+
+    var q = async.queue((label, callback)=> {
+
+      label.timetableId = label.timetableId ? label.timetableId : 0;
       models.label.findOrCreate({
         where: {
           timetableId: label.timetableId,
           key: label.key
         },
         defaults: {
-          timetable: label.timetableId,
+          timetableId: label.timetableId,
           key: label.key,
           value: label.value,
-          parentText: label.parentText,
           type: label.type,
+          parentText: label.parentText,
           orginal: label.orginal
         }
       })
-        .spread((data, created) => {
-          if (data.type === LABEL_TYPES.TUTOR) {
+        .spread((labelResult, created)=> {
 
+
+          if (labelResult.type === LABEL_TYPES.TUTOR) {
             models.labeltutor.findOrCreate({
-              where: {labelId: data.id},
-              defaults: {moodleId: label.moodleId}
+              where: {labelId: labelResult.id},
+              defaults: {labelId: labelResult.id}
             })
-              .spread((labeltutor, created)=> {
+              .spread((labeltutorResult, created)=> {
 
-                if (labeltutor.moodleId !== label.moodleId) {
-                  labeltutor.moodleId = label.moodleId;
-                  resolve(labeltutor.save());
-                } else {
-                  resolve();
+
+                var labelTutor = resolveTutorName(labelResult);
+
+                if (labelTutor !== false) {
+                  labeltutorResult.prefix = labelTutor.prefix;
+                  labeltutorResult.surename = labelTutor.surename;
+                  labeltutorResult.forename = labelTutor.forename;
                 }
+                if (labeltutorResult.moodleId !== label.moodleId && label.moodleId !== undefined) {
+                  labeltutorResult.moodleId = label.moodleId;
+                }
+                labeltutorResult
+                  .save()
+                  .then(()=> {
+                    callback();
+                  })
+                  .catch((err)=> {
+                    console.log('ltr', labeltutorResult);
+                    reject(err);
+                  });
               })
               .catch((err)=> {
+                console.log('lr', labelResult);
+
                 reject(err);
               });
           } else {
-            resolve();
-
+            callback();
           }
-
         })
-        .catch((err) => {
-          console.log('ERR', label, err);
+        .catch((err)=> {
+          console.log('lt', label);
           reject(err);
         });
+
+    }, 1);
+
+    q.drain = () => {
+
+      updateParentsId()
+        .then((labels) => {
+          data.labels = labels;
+          console.log('INFO: Succesfuly updated labels');
+          resolve(data);
+        })
+        .catch((err) => {
+          console.log('ERROR: Updating labels', err);
+          reject(err);
+        });
+    };
+    for (var label in data.labels) {
+      q.push(data.labels[label]);
     }
   });
 };
-
-exports.updateLabels = (data) => {
-  return new Promise((resolve, reject) => {
-      console.log('INFO: Updating labels');
-      var q = async.queue((label, callback)=> {
-
-        label.timetableId = label.timetableId ? label.timetableId : 0;
-        models.label.findOrCreate({
-          where: {
-            timetableId: label.timetableId,
-            key: label.key
-          },
-          defaults: {
-            timetableId: label.timetableId,
-            key: label.key,
-            value: label.value,
-            type: label.type,
-            parentText: label.parentText,
-            orginal: label.orginal
-          }
-        })
-          .spread((data, created)=> {
-            if (data.type === LABEL_TYPES.TUTOR && label.moodleId !== undefined) {
-              models.labeltutor.findOrCreate({
-                where: {labelId: data.id},
-                defaults: {labelId: data.id}
-              })
-                .spread((tutor, created)=> {
-                  var name = resolveTutorName(data);
-                  if (name !== false) {
-                    tutor.prefix = name.prefix;
-                    tutor.surename = name.surename;
-                    tutor.forename = name.forename;
-                  }
-                  if (label.moodleId !== tutor.moodleId) {
-                    tutor.moodleId = label.moodleId;
-                  }
-                  tutor
-                    .save()
-                    .then(()=> {
-                      callback();
-                    })
-                    .catch((err)=> {
-                      reject(err);
-                    });
-                })
-                .catch((err)=> {
-                  reject(err);
-                });
-            } else {
-              callback();
-            }
-          })
-          .catch((err)=> {
-            reject(err);
-          });
-
-      }, CONFIG.CONCURRENT_DB_CONNECTIONS);
-
-      q.drain = () => {
-
-        updateParentsId()
-          .then((labels) => {
-            data.labels = labels;
-            console.log('INFO: Succesfuly updated labels');
-            resolve(data);
-          })
-          .catch((err) => {
-            console.log('ERROR: Updating labels', err);
-            reject(err);
-          });
-      };
-      for (var label in data.labels) {
-        q.push(data.labels[label]);
-      }
-    }
-  )
-    ;
-}
-;
 
 var getPrefix = (val) => {
   return (val.split(', ').length > 1) ? val.split(',')[1].trim() : null;
@@ -234,41 +276,7 @@ var updateLabelTutor = (labelTutor, data) => {
 
   });
 };
-/**
- *
- * @param {{id:number, timetable:number|null, key:string, value:string|null, labelId:number|null, parentText:number|null, orginal:boolean}} label
- */
-var resolveTutorName = (label)=> {
-  if (label.value) {
-    var data = {
-      prefix: null,
-      surename: null,
-      forename: null
-    };
-    data.prefix = getPrefix(label.key);
-    var prefixLength = data.prefix ? data.prefix.length : 0;
-    var sKey = label.key.slice(0, ( ( prefixLength === 0) ? label.key.length : label.key.length - prefixLength - 2)).trim();
-    var sValue = label.value.slice(prefixLength, label.value.length).trim();
-    var sKeyFirstSpace = sKey.indexOf(' ');
-    var i = 0;
-    do {
-      /**
-       * Szukanie podobieństw
-       *          ala ma kot -->>
-       *            <<-- kota ma ale
-       */
-      if (sValue.slice(sValue.length - ( sKeyFirstSpace + i)) === sKey.slice(0, sKeyFirstSpace + i)) {
-        data.surename = sValue.slice(sKey.length - sKeyFirstSpace - i).trim();
-        data.forename = sValue.slice(0, sValue.length - sKeyFirstSpace - i).trim();
-        return data;
-      }
-      i++;
-    } while (i < sKey.length);
-    return false;
-  } else {
-    return false;
-  }
-};
+
 
 // exports.resolveTutorsName = (data) => {
 //   console.log('INFO: Resolving tutors name');

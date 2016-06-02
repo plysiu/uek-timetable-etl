@@ -1,48 +1,54 @@
 const LABEL_TYPES = require('uekplan-models/labelTypes');
+var async = require('async');
 /**
  *
  * @param labels
  * @param list collection of all list avaibled from extract;
  * @return {*}
  */
-function updateLabelsFromList(labels, list) {
-  console.log('INFO: Updating labels from task list');
-  list.forEach((elements) => {
-    elements.forEach((task) => {
-      if (task.group === undefined) {
-        if (labels[task.timetableId] === undefined) {
-          labels[task.timetableId] = {};
-        }
-        labels[task.timetableId].timetableId = task.timetableId;
-        labels[task.timetableId].key = task.name;
-        labels[task.timetableId].type = task.type;
-        labels[task.timetableId].parentText = task.group;
-        labels[task.timetableId].orginal = true;
-      } else {
-        if (labels[task.group] === undefined) {
-          labels[task.group] = {};
-        }
+function updateLabelsFromList(data) {
 
-        labels[task.group].key = task.group;
-        labels[task.group].orginal = true;
-        switch (task.type) {
-          case LABEL_TYPES.GROUP:
-            labels[task.group].type = LABEL_TYPES.FIELD;
-            break;
-          case LABEL_TYPES.ROOM:
-            labels[task.group].type = LABEL_TYPES.BUILDING;
-            break;
-          case LABEL_TYPES.TUTOR:
-            labels[task.group].type = LABEL_TYPES.SURNAME;
-            break;
-          default:
-            throw new Error('Unknown task type');
+  return new Promise((resolve, reject)=> {
+
+    console.log('INFO: Updating data.labels from task data.list');
+    data.list.forEach((elements) => {
+      elements.forEach((task) => {
+        if (task.group === undefined) {
+          if (data.labels[task.timetableId] === undefined) {
+            data.labels[task.timetableId] = {};
+          }
+          data.labels[task.timetableId].timetableId = task.timetableId;
+          data.labels[task.timetableId].key = task.name;
+          data.labels[task.timetableId].type = task.type;
+          data.labels[task.timetableId].parentText = task.group;
+          data.labels[task.timetableId].orginal = true;
+        } else {
+          if (data.labels[task.group] === undefined) {
+            data.labels[task.group] = {};
+          }
+
+          data.labels[task.group].key = task.group;
+          data.labels[task.group].orginal = true;
+          switch (task.type) {
+            case LABEL_TYPES.GROUP:
+              data.labels[task.group].type = LABEL_TYPES.FIELD;
+              break;
+            case LABEL_TYPES.ROOM:
+              data.labels[task.group].type = LABEL_TYPES.BUILDING;
+              break;
+            case LABEL_TYPES.TUTOR:
+              data.labels[task.group].type = LABEL_TYPES.SURNAME;
+              break;
+            default:
+              throw new Error('Unknown task type');
+          }
         }
-      }
+      });
     });
+    console.log('INFO: Succesfuly updated data.labels from task list');
+    resolve(data)
   });
-  console.log('INFO: Succesfuly updated labels from task list');
-  return labels;
+
 };
 
 function findTimetableIdFromLabels(labels, key) {
@@ -73,61 +79,88 @@ function timetableHaveEvents(timetable) {
   timetable.events[0].name !== 'Publikacja tego planu zajęć została zablokowana przez prowadzącego zajęcia.');
 };
 
-function updateLabelsFromTimetables(labels, timetables) {
-  console.log('INFO: Updating labels from timetables');
-  var x = 0;
-  for (var type in timetables) {
-    for (var timetable in timetables[type]) {
+function updateLabelsFromTimetables(data) {
 
-      if (type === LABEL_TYPES.TUTOR && timetables.N[timetable].moodle) {
-        labels[timetable].moodleId = Math.abs(timetables.N[timetable].moodle);
-      }
+  return new Promise((resolve, reject)=> {
+    console.log('INFO: Updating data.labels from data.timetables');
+    var x = 0;
+    for (var type in data.timetables) {
+      for (var timetable in data.timetables[type]) {
 
-      if (timetableHaveEvents(timetables[type][timetable])) {
-        timetables[type][timetable].events
-          .forEach((event)=> {
-            if (event.name !== undefined && event.name.length > 0 && labels[event.name] === undefined) {
-              labels[event.name] = {};
-              labels[event.name].key = event.name.trim();
-              labels[event.name].type = LABEL_TYPES.ACTIVITY;
-              labels[event.name].orginal = true;
-            }
+        if (type === LABEL_TYPES.TUTOR && data.timetables.N[timetable].moodle) {
+          data.labels[timetable].moodleId = Math.abs(data.timetables.N[timetable].moodle);
+        }
 
-            if (event.type !== undefined && event.type.length > 0 && labels[event.type] === undefined) {
-              labels[event.type] = {};
-              labels[event.type].key = event.type.trim();
-              labels[event.type].type = LABEL_TYPES.TYPE;
-              labels[event.type].orginal = true;
-            }
+        if (timetableHaveEvents(data.timetables[type][timetable])) {
+          data.timetables[type][timetable].events
+            .forEach((event)=> {
+              if (event.name !== undefined && event.name.length > 0 && data.labels[event.name] === undefined) {
+                data.labels[event.name] = {};
+                data.labels[event.name].key = event.name.trim();
+                data.labels[event.name].type = LABEL_TYPES.ACTIVITY;
+                data.labels[event.name].orginal = true;
+              }
 
-            if (event.note !== undefined && event.note.length > 0 && labels[event.note] === undefined) {
-              labels[event.note] = {};
-              labels[event.note].key = event.note.trim();
-              labels[event.note].type = LABEL_TYPES.NOTE;
-              labels[event.note].orginal = true;
-            }
-          });
-      }
-    }
-  }
-  for (var label in labels) {
-    if (labels[label].type === LABEL_TYPES.TUTOR) {
-      var tutorTimetableId = labels[label].timetableId;
-      if (timetableHaveEvents(timetables.N[tutorTimetableId])) {
-        for (var i = 0; i < timetables.N[tutorTimetableId].events.length; i++) {
+              if (event.type !== undefined && event.type.length > 0 && data.labels[event.type] === undefined) {
+                data.labels[event.type] = {};
+                data.labels[event.type].key = event.type.trim();
+                data.labels[event.type].type = LABEL_TYPES.TYPE;
+                data.labels[event.type].orginal = true;
+              }
 
-          var k = findTimetableIdFromLabels(labels, timetables.N[tutorTimetableId].events[i].place);
-          var searchedEvent = findEventInTimetable(timetables.N[tutorTimetableId].events[i], timetables.S[k]);
-          if (searchedEvent !== undefined) {
-            labels[label].value = searchedEvent.tutor.trim();
-            break;
-          }
+              if (event.note !== undefined && event.note.length > 0 && data.labels[event.note] === undefined) {
+                data.labels[event.note] = {};
+                data.labels[event.note].key = event.note.trim();
+                data.labels[event.note].type = LABEL_TYPES.NOTE;
+                data.labels[event.note].orginal = true;
+              }
+            });
         }
       }
     }
-  }
-  console.log('INFO: Succesfuly updated labels from timetables');
-  return labels;
+
+    async.forEachOfLimit(data.labels, 5, (label, key, callback)=> {
+      if (label.type === LABEL_TYPES.TUTOR) {
+        var tutorTimetableId = label.timetableId;
+        if (timetableHaveEvents(data.timetables.N[tutorTimetableId])) {
+          for (var i = 0; i < data.timetables.N[tutorTimetableId].events.length; i++) {
+
+            var k = findTimetableIdFromLabels(data.labels, data.timetables.N[tutorTimetableId].events[i].place);
+            var searchedEvent = findEventInTimetable(data.timetables.N[tutorTimetableId].events[i], data.timetables.S[k]);
+            if (searchedEvent !== undefined) {
+              break;
+            }
+          }
+        }
+      }
+      async.setImmediate(() => {
+        callback();
+      });
+    }, (err) => {
+      if (err) {
+        reject(err);
+      }
+      console.log('INFO: Succesfuly updated data.labels from data.timetables');
+      resolve(data);
+    });
+    //
+    // for (var label in data.labels) {
+    //   if (data.labels[label].type === LABEL_TYPES.TUTOR) {
+    //     var tutorTimetableId = data.labels[label].timetableId;
+    //     if (timetableHaveEvents(data.timetables.N[tutorTimetableId])) {
+    //       for (var i = 0; i < data.timetables.N[tutorTimetableId].events.length; i++) {
+    //
+    //         var k = findTimetableIdFromLabels(data.labels, data.timetables.N[tutorTimetableId].events[i].place);
+    //         var searchedEvent = findEventInTimetable(data.timetables.N[tutorTimetableId].events[i], data.timetables.S[k]);
+    //         if (searchedEvent !== undefined) {
+    //           data.labels[label].value = searchedEvent.tutor.trim();
+    //           break;
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
+  });
 };
 /**
  *
@@ -135,20 +168,22 @@ function updateLabelsFromTimetables(labels, timetables) {
  * @param sections
  * @return {*}
  */
-function addLabelsFromSections(labels, sections) {
-  console.log('INFO: Updating labels from sections');
-  sections.forEach((section) => {
-    var id = section.timetableId || section.name;
-    if (labels[id] === undefined) {
-      labels[id] = {};
-    }
-    labels[id].key = section.name;
-    labels[id].type = section.type;
-    labels[id].parentText = section.group;
-    labels[id].orginal = true;
+function addLabelsFromSections(data) {
+  return new Promise((resolve, reject)=> {
+    console.log('INFO: Updating labels from data.sections');
+    data.sections.forEach((section) => {
+      var id = section.timetableId || section.name;
+      if (data.labels[id] === undefined) {
+        data.labels[id] = {};
+      }
+      data.labels[id].key = section.name;
+      data.labels[id].type = section.type;
+      data.labels[id].parentText = section.group;
+      data.labels[id].orginal = true;
+    });
+    console.log('INFO: Succesfuly updated labels from data sections');
+    resolve(data);
   });
-  console.log('INFO: Succesfuly updated labels from sections');
-  return labels;
 };
 /**
  *
@@ -161,9 +196,16 @@ module.exports = (data)=> {
     require('./labels')
       .loadLabels()
       .then((labels)=> {
-        data.labels = updateLabelsFromList(labels, data.list);
-        data.labels = updateLabelsFromTimetables(data.labels, data.timetables);
-        data.labels = addLabelsFromSections(data.labels, data.sections);
+        data.labels = labels;
+        return updateLabelsFromList(data);
+      })
+      .then((data)=> {
+        return addLabelsFromSections(data);
+      })
+      .then((data)=> {
+        return updateLabelsFromTimetables(data);
+      })
+      .then((data)=> {
         delete data.sections;
         delete data.list;
         console.log('INFO: Successfuly transformed labels');

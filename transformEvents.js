@@ -3,6 +3,7 @@ const LABEL_TYPES = require('uekplan-models/labelTypes');
 const blockBegin = ['7:00', '7:50', '8:45', '9:35', '10:30', '11:20', '12:15', '13:05', '14:00', '14:50', '15:40', '16:30', '17:20', '18:10', '19:00', '19:50', '20:40'];
 const blockEnd = ['7:45', '8:35', '9:30', '10:20', '11:15', '12:05', '13:00', '13:50', '14:45', '15:35', '16:25', '17:15', '18:05', '18:55', '19:45', '20:35', '21:25'];
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
+var async = require('async');
 /**
  *
  * @param timetable
@@ -299,40 +300,74 @@ module.exports = (data) => {
         return b.key.length - a.key.length;
       }
     };
-
-
-    for(var field in labels){
+    for (var field in labels) {
       labels[field].sort(sort);
     }
 
-    for (var timetableType in data.timetables) {
-      for (var timetableId in data.timetables[timetableType]) {
-        if (timetableHaveEvents(data.timetables[timetableType][timetableId])) {
+    // for (var timetableType in data.timetables) {
+
+    async.forEachOfLimit(data.timetables, 1, (timetableType, key, cb)=> {
+
+      async.forEachOfLimit(timetableType, 10, (value, key, callback)=> {
+
+        if (timetableHaveEvents(value)) {
           var timetable = explodeEventsFromTimetable(
-            data.timetables[timetableType][timetableId],
-            data.labels[timetableId],
+            value,
+            data.labels[key],
             labels);
           data.events = data.events.concat(timetable.events);
           data.exceptions = Object.assign(
             data.exceptions,
             timetable.exceptions);
         }
-      }
-    }
+        async.setImmediate(function () {
+          console.log(Object.keys(data.exceptions).length, data.events.length);
+          callback();
+        });
 
-    delete data.timetables;
-    delete data.labels;
-    data.logEntry.eventsExtracted = data.events.length;
-    data.logEntry.exceptionsExtracted = Object.keys(data.exceptions).length;
-    data.logEntry
-      .save()
-      .then(() => {
-        console.log('INFO: Succesfuly extracted events');
-        resolve(data);
-      })
-      .catch((err) => {
-        console.log('ERROR: Extracting events');
-        reject(err);
+      }, (err)=> {
+        if (err) {
+          cb(err);
+        }
+        cb();
       });
+    }, (err)=> {
+      if (err) {
+        reject(err);
+      }
+
+      delete data.timetables;
+      delete data.labels;
+      data.logEntry.eventsExtracted = data.events.length;
+      data.logEntry.exceptionsExtracted = Object.keys(data.exceptions).length;
+      data.logEntry.save()
+        .then(() => {
+          console.log('INFO: Succesfuly extracted events');
+          resolve(data);
+        })
+        .catch((err) => {
+          console.log('ERROR: Extracting events');
+          reject(err);
+        });
+    });
+    //
+    //
+    // for (var timetableType in data.timetables) {
+    //   for (var timetableId in data.timetables[timetableType]) {
+    //
+    //
+    //     if (timetableHaveEvents(data.timetables[timetableType][timetableId])) {
+    //
+    //       var timetable = explodeEventsFromTimetable(
+    //         data.timetables[timetableType][timetableId],
+    //         data.labels[timetableId],
+    //         labels);
+    //       data.events = data.events.concat(timetable.events);
+    //       data.exceptions = Object.assign(
+    //         data.exceptions,
+    //         timetable.exceptions);
+    //     }
+    //   }
+    // }
   });
 };
